@@ -9,7 +9,6 @@
 #include <getopt.h>
 #include <inttypes.h>
 #include <poll.h>
-#include <pthread.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -23,22 +22,14 @@
 #include "types.h"
 #include "wlr-layer-shell-unstable-v1.h"
 
-#define MFD_NAME       "exwp-shm-pool"
-#define SOCK_PATH      "/tmp/foo.sock"
-#define SOCK_BACKLOG   128
-#define THRD_POOL_SIZE 16
+#define MFD_NAME     "exwp-shm-pool"
+#define SOCK_PATH    "/tmp/foo.sock"
+#define SOCK_BACKLOG 128
 
 #define die(...)    err(EXIT_FAILURE, __VA_ARGS__)
 #define diex(...)   errx(EXIT_FAILURE, __VA_ARGS__)
 #define streq(a, b) (!strcmp(a, b))
 #define lengthof(a) (sizeof(a) / sizeof(*(a)))
-
-/* concurrent integer queue */
-struct ciqueue {
-	int *buf;
-	size_t len, cap;
-	pthread_mutex_t mtx;
-};
 
 struct buffer {
 	void *data;  /* Raw pixel data */
@@ -74,17 +65,12 @@ void reg_del(void *, wl_registry_t *, u32);
 void shm_fmt(void *, wl_shm_t *, u32);
 
 /* Normal functions */
-int ciq_get(struct ciqueue *);
-void ciq_add(struct ciqueue *, int);
 void cleanup(void);
 void draw(struct output *);
 void out_layer_free(struct output *);
 void shm_get_buffer(struct buffer *, wl_shm_t *, u32, u32);
 void surf_create(struct output *);
 void *thread_handler(void *);
-
-static pthread_t thrd_pool[THRD_POOL_SIZE];
-static struct ciqueue fd_queue;
 
 static struct wl_compositor *comp;
 static struct wl_display *disp;
@@ -204,16 +190,6 @@ main(int argc, char **argv)
 	if ((FD(SIG) = signalfd(-1, &mask, 0)) == -1)
 		die("signalfd");
 
-	/* Initialize thread pool */
-	da_init(&fd_queue, 16);
-	for (int i = 0; i < THRD_POOL_SIZE; i++) {
-		int n = pthread_create(&thrd_pool[i], NULL, thread_handler, NULL);
-		if (n) {
-			errno = n;
-			die("pthread_create");
-		}
-	}
-
 	/* Setup dæmon socket */
 	if ((FD(SOCK) = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
 		die("socket");
@@ -250,8 +226,14 @@ main(int argc, char **argv)
 			int c_fd = accept(FD(SOCK), NULL, NULL);
 			if (c_fd == -1)
 				warn("accept");
-			else
-				ciq_add(&fd_queue, c_fd);
+			else {
+				/* TODO: Put something useful here */
+				int nr;
+				char buf[1024];
+
+				while ((nr = read(c_fd, buf, sizeof(buf))) > 0)
+					write(STDOUT_FILENO, buf, nr);
+			}
 		}
 #undef EVENT
 	}
@@ -260,29 +242,6 @@ main(int argc, char **argv)
 		close(fds[i].fd);
 	return EXIT_SUCCESS;
 #undef FD
-}
-
-int
-ciq_get(struct ciqueue *q)
-{
-	int n;
-	pthread_mutex_lock(&q->mtx);
-	if (q->len == 0) {
-		pthread_mutex_unlock(&q->mtx);
-		return -1;
-	}
-	n = q->buf[0];
-	da_remove(q, 0);
-	pthread_mutex_unlock(&q->mtx);
-	return n;
-}
-
-void
-ciq_add(struct ciqueue *q, int n)
-{
-	pthread_mutex_lock(&q->mtx);
-	da_append(q, n);
-	pthread_mutex_unlock(&q->mtx);
 }
 
 void
@@ -559,27 +518,6 @@ buf_free(void *data, wl_buffer_t *wl_buf)
 	free(buf);
 }
 
-void *
-thread_handler(void *arg)
-{
-	static char buf[1024] = {0};
-	for (;;) {
-		ssize_t nr;
-		int fd = ciq_get(&fd_queue);
-		if (fd == -1) {
-			usleep(1000);
-			continue;
-		}
-
-		while ((nr = read(fd, buf, sizeof(buf) - 1)) > 0)
-			write(STDOUT_FILENO, buf, nr);
-		if (nr == -1)
-			warn("read");
-		close(fd);
-	}
-	return NULL;
-}
-
 void
 cleanup(void)
 {
@@ -592,7 +530,6 @@ cleanup(void)
 		free(out.human_name);
 	}
 	free(outputs.buf);
-	free(fd_queue.buf);
 	if (lshell != NULL)
 		zwlr_layer_shell_v1_destroy(lshell);
 	if (shm != NULL)

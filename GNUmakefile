@@ -15,7 +15,6 @@ objdirs = $(addprefix obj/,$(targets))
 
 all: $(objdirs) $(targets)
 
-ewctl: LBLIBS += -lpthread
 ewd ewctl: LDLIBS += -lwayland-client
 png2xrgb: LDLIBS += -lm
 png2xrgb: CFLAGS += -Wno-unused-function
