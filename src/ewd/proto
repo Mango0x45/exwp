@@ -1,0 +1,4 @@
+u32  // Output name length
+u32  // Image length
+u8[] // Output name
+u8[] // Image data

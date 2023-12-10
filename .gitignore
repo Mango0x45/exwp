@@ -1,0 +1,10 @@
+.cache/
+obj/
+compile_commands.json
+ewctl
+ewd
+png2xrgb
+!src/ewctl
+!src/ewd
+!src/png2xrgb
+out.png
