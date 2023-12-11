@@ -78,6 +78,12 @@ static struct wl_registry *reg;
 static struct wl_shm *shm;
 static struct zwlr_layer_shell_v1 *lshell;
 
+/* We use this to check in the cleanup routine whether or not we need to unlink
+   the daemon’s socket.  Without this check, starting a second daemon while a
+   first daemon is already running would cause the exiting second daemon to
+   unlink the first daemons socket. */
+bool sock_bound = false;
+
 static struct {
 	struct output *buf;
 	size_t len, cap;
@@ -197,6 +203,7 @@ main(int argc, char **argv)
 		die("socket");
 	if (bind(FD(SOCK), &saddr, sizeof(saddr)) == -1)
 		die("bind");
+	sock_bound = true;
 	if (listen(FD(SOCK), SOCK_BACKLOG) == -1)
 		die("listen");
 
@@ -542,7 +549,8 @@ buf_free(void *data, wl_buffer_t *wl_buf)
 void
 cleanup(void)
 {
-	unlink(SOCK_PATH);
+	if (sock_bound)
+		unlink(SOCK_PATH);
 	for (size_t i = 0; i < outputs.len; i++) {
 		struct output out = outputs.buf[i];
 		if (out.wl_out != NULL)
