@@ -17,7 +17,7 @@ objdirs = $(addprefix obj/,$(targets))
 
 all: $(objdirs) $(targets)
 
-ewctl: libs += libjxl libjxl_threads
+ewctl:     libs += libjxl libjxl_threads
 ewd ewctl: libs += wayland-client
 
 .SECONDEXPANSION:
@@ -36,7 +36,8 @@ obj/%.o: src/%.c
 clean:
 	rm -rf obj $(targets)
 
+debug:   CFLAGS += -g -ggdb3
 release: CFLAGS += $(OFLAGS)
-release: all
+debug release: all
 
-.PHONY: clean release
+.PHONY: clean debug release
