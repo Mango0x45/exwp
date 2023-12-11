@@ -1,10 +1,16 @@
+# Clang Format
 .cache/
-obj/
 compile_commands.json
+
+# Compiled Outputs
+*.o
 ewctl
 ewd
 png2xrgb
 !src/ewctl
 !src/ewd
 !src/png2xrgb
-out.png
+
+# Temporary files
+out.*
+*.tmp
