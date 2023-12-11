@@ -1,5 +1,5 @@
-#ifndef WLBG_TYPES_H
-#define WLBG_TYPES_H
+#ifndef EWD_TYPES_H
+#define EWD_TYPES_H
 
 typedef int32_t i32;
 typedef uint32_t u32;
@@ -19,4 +19,4 @@ typedef struct wl_registry_listener wl_registry_listener_t;
 typedef struct wl_shm_listener wl_shm_listener_t;
 typedef struct zwlr_layer_surface_v1_listener zwlr_layer_surface_v1_listener_t;
 
-#endif /* !WLBG_TYPES_H */
+#endif /* !EWD_TYPES_H */
