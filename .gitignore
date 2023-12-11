@@ -1,8 +1,8 @@
-# Clang Format
+# Clang-Format
 .cache/
 compile_commands.json
 
-# Compiled Outputs
+# Compiled outputs
 *.o
 ewctl
 ewd
