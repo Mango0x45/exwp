@@ -97,7 +97,7 @@ main(int argc, char **argv)
 	pix = jxl_decode(img);
 	if ((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
 		die("socket");
-	if (connect(sockfd, &saddr, sizeof(struct sockaddr_un)) == -1)
+	if (connect(sockfd, &saddr, sizeof(saddr)) == -1)
 		die("connect: %s", saddr.sun_path);
 	srv_msg(sockfd, pix);
 
@@ -112,20 +112,20 @@ srv_msg(int sockfd, struct file mmf)
 	u8 m_buf[sizeof(size_t)], fd_buf[CMSG_SPACE(sizeof(int))];
 	struct iovec iov = {
 		.iov_base = m_buf,
-		.iov_len = sizeof(size_t),
+		.iov_len = sizeof(m_buf),
 	};
 	struct msghdr msg = {
 		.msg_iov = &iov,
 		.msg_iovlen = 1,
 		.msg_control = fd_buf,
-		.msg_controllen = CMSG_SPACE(sizeof(int)),
+		.msg_controllen = sizeof(fd_buf),
 	};
 	struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
 	cmsg->cmsg_level = SOL_SOCKET;
 	cmsg->cmsg_type = SCM_RIGHTS;
 	cmsg->cmsg_len = CMSG_LEN(sizeof(int));
 	*(int *)CMSG_DATA(cmsg) = mmf.fd;
-	memcpy(m_buf, &mmf.size, sizeof(size_t));
+	memcpy(m_buf, &mmf.size, sizeof(mmf.size));
 
 	if (sendmsg(sockfd, &msg, 0) == -1)
 		die("sendmsg");
