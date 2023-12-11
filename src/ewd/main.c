@@ -124,7 +124,10 @@ main(int argc, char **argv)
 		{"help",       no_argument, 0, 'h'},
 		{NULL,         0,           0, 0  },
 	};
-	struct sockaddr_un s_name = {0};
+	struct sockaddr_un saddr = {
+		.sun_family = AF_UNIX,
+		.sun_path = SOCK_PATH,
+	};
 	struct pollfd fds[] = {
 		{.events = POLLIN},
 		{.events = POLLIN},
@@ -192,9 +195,7 @@ main(int argc, char **argv)
 	/* Setup dæmon socket */
 	if ((FD(SOCK) = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
 		die("socket");
-	s_name.sun_family = AF_UNIX;
-	strncpy(s_name.sun_path, SOCK_PATH, sizeof(s_name.sun_path) - 1);
-	if (bind(FD(SOCK), &s_name, sizeof(s_name)) == -1)
+	if (bind(FD(SOCK), &saddr, sizeof(saddr)) == -1)
 		die("bind");
 	if (listen(FD(SOCK), SOCK_BACKLOG) == -1)
 		die("listen");
@@ -222,17 +223,38 @@ main(int argc, char **argv)
 			if (wl_display_dispatch(disp) == -1)
 				break;
 		} else if (EVENT(SOCK, POLLIN)) {
-			int c_fd = accept(FD(SOCK), NULL, NULL);
-			if (c_fd == -1)
-				warn("accept");
-			else {
-				/* TODO: Put something useful here */
-				int nr;
-				char buf[1024];
+			int cfd, mfd;
+			size_t size;
+			u8 *data;
+			u8 fdbuf[CMSG_SPACE(sizeof(int))], mbuf[sizeof(size_t)];
+			struct iovec iov = {
+				.iov_base = mbuf,
+				.iov_len = sizeof(mbuf),
+			};
+			struct msghdr msg = {
+				.msg_iov = &iov,
+				.msg_iovlen = 1,
+				.msg_control = fdbuf,
+				.msg_controllen = sizeof(fdbuf),
+			};
+			struct cmsghdr *cmsg;
 
-				while ((nr = read(c_fd, buf, sizeof(buf))) > 0)
-					write(STDOUT_FILENO, buf, nr);
+			if ((cfd = accept(FD(SOCK), NULL, NULL)) == -1) {
+				warn("accept");
+				continue;
 			}
+			if (recvmsg(cfd, &msg, 0) == -1) {
+				warn("recvmsg");
+				continue;
+			}
+
+			cmsg = CMSG_FIRSTHDR(&msg);
+			data = CMSG_DATA(cmsg);
+			mfd = *(int *)data;
+			// mfd = *(int *)CMSG_DATA(cmsg);
+			memcpy(&size, mbuf, sizeof(size_t));
+			printf("Got file of size %zu\n", size);
+			close(mfd);
 		}
 #undef EVENT
 	}
