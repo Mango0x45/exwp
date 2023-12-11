@@ -12,15 +12,13 @@ LDLIBS = $(shell pkg-config --libs $(libs) 2>/dev/null)
 srcs = $(wildcard src/$@/*.c)
 objs = $(patsubst src/%.c,obj/%.o, $(srcs))
 
-targets = ewd ewctl png2xrgb
+targets = ewd ewctl
 objdirs = $(addprefix obj/,$(targets))
 
 all: $(objdirs) $(targets)
 
 ewctl: libs += libjxl libjxl_threads
 ewd ewctl: libs += wayland-client
-png2xrgb: LDLIBS += -lm
-png2xrgb: CFLAGS += -Wno-unused-function
 
 .SECONDEXPANSION:
 $(targets): $$(objs)

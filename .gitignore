@@ -6,10 +6,7 @@ compile_commands.json
 *.o
 ewctl
 ewd
-png2xrgb
-!src/ewctl
-!src/ewd
-!src/png2xrgb
+!src/*
 
 # Temporary files
 out.*
