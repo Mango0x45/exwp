@@ -1,5 +1,7 @@
 #include <sys/mman.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/un.h>
 
 #include <err.h>
 #include <fcntl.h>
@@ -16,11 +18,26 @@
 typedef uint8_t u8;
 typedef uint32_t xrgb;
 
+#define MFD_NAME  "exwp-client-to-daemon"
+#define SOCK_PATH "/tmp/foo.sock"
+
 #define die(...)    err(EXIT_FAILURE, __VA_ARGS__)
 #define diex(...)   errx(EXIT_FAILURE, __VA_ARGS__)
 #define streq(x, y) (!strcmp(x, y))
 
-u8 *process(const char *, int, size_t *);
+struct bs {
+	u8 *buf;
+	size_t size;
+};
+
+struct file {
+	int fd;
+	size_t size;
+};
+
+static void srv_msg(int, struct file);
+static struct file jxl_decode(struct bs);
+static u8 *process(const char *, int, size_t *);
 
 static void
 usage(const char *argv0)
@@ -35,21 +52,13 @@ usage(const char *argv0)
 int
 main(int argc, char **argv)
 {
-	int opt;
-	size_t nthrds;
-	void *tpr;
-	JxlDecoder *d;
-	JxlDecoderStatus res;
-	JxlPixelFormat fmt = {
-		.align = 0,
-		.data_type = JXL_TYPE_UINT8,
-		.endianness = JXL_NATIVE_ENDIAN,
-		.num_channels = sizeof(xrgb),
+	int opt, sockfd;
+	struct file pix;
+	struct bs img;
+	struct sockaddr_un saddr = {
+		.sun_family = AF_UNIX,
+		.sun_path = SOCK_PATH,
 	};
-	struct {
-		u8 *buf;
-		size_t size;
-	} img, pix;
 	struct option longopts[] = {
 		{"display", required_argument, 0, 'd'},
 		{"help",    no_argument,       0, 'h'},
@@ -85,6 +94,59 @@ main(int argc, char **argv)
 		close(fd);
 	}
 
+	pix = jxl_decode(img);
+	if ((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
+		die("socket");
+	if (connect(sockfd, &saddr, sizeof(struct sockaddr_un)) == -1)
+		die("connect: %s", saddr.sun_path);
+	srv_msg(sockfd, pix);
+
+	close(sockfd);
+	close(pix.fd);
+	return EXIT_SUCCESS;
+}
+
+void
+srv_msg(int sockfd, struct file mmf)
+{
+	u8 m_buf[sizeof(size_t)], fd_buf[CMSG_SPACE(sizeof(int))];
+	struct iovec iov = {
+		.iov_base = m_buf,
+		.iov_len = sizeof(size_t),
+	};
+	struct msghdr msg = {
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
+		.msg_control = fd_buf,
+		.msg_controllen = CMSG_SPACE(sizeof(int)),
+	};
+	struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+	cmsg->cmsg_level = SOL_SOCKET;
+	cmsg->cmsg_type = SCM_RIGHTS;
+	cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+	*(int *)CMSG_DATA(cmsg) = mmf.fd;
+	memcpy(m_buf, &mmf.size, sizeof(size_t));
+
+	if (sendmsg(sockfd, &msg, 0) == -1)
+		die("sendmsg");
+}
+
+struct file
+jxl_decode(struct bs img)
+{
+	u8 *buf;
+	void *tpr;
+	size_t nthrds;
+	struct file pix;
+	JxlDecoder *d;
+	JxlDecoderStatus res;
+	JxlPixelFormat fmt = {
+		.align = 0,
+		.data_type = JXL_TYPE_UINT8,
+		.endianness = JXL_NATIVE_ENDIAN,
+		.num_channels = sizeof(xrgb),
+	};
+
 	if ((d = JxlDecoderCreate(NULL)) == NULL)
 		diex("Failed to allocate JXL decoder");
 
@@ -107,15 +169,21 @@ main(int argc, char **argv)
 		case JXL_DEC_NEED_IMAGE_OUT_BUFFER:
 			if (JxlDecoderImageOutBufferSize(d, &fmt, &pix.size))
 				diex("Failed to get image output buffer size");
-			if ((pix.buf = malloc(pix.size)) == NULL)
-				die("malloc");
-			if (JxlDecoderSetImageOutBuffer(d, &fmt, pix.buf, pix.size))
+			if ((pix.fd = memfd_create(MFD_NAME, 0)) == -1)
+				die("memfd_create");
+			if (ftruncate(pix.fd, pix.size) == -1)
+				die("ftruncate");
+			buf = mmap(NULL, pix.size, PROT_READ | PROT_WRITE, MAP_SHARED,
+			           pix.fd, 0);
+			if (buf == MAP_FAILED)
+				die("mmap");
+			if (JxlDecoderSetImageOutBuffer(d, &fmt, buf, pix.size))
 				diex("Failed to set image output buffer");
 			break;
 		case JXL_DEC_NEED_MORE_INPUT:
 			diex("Input image was truncated");
 		case JXL_DEC_ERROR:;
-			JxlSignature sig = JxlSignatureCheck(pix.buf, pix.size);
+			JxlSignature sig = JxlSignatureCheck(buf, pix.size);
 			die("Failed to decode file: %s",
 			    (sig == JXL_SIG_CODESTREAM || sig == JXL_SIG_CONTAINER)
 			        ? "Possibly file"
@@ -128,9 +196,7 @@ main(int argc, char **argv)
 	JxlThreadParallelRunnerDestroy(tpr);
 	JxlDecoderDestroy(d);
 
-	/* TODO: memfd_create() and send FD to dæmon */
-	write(STDOUT_FILENO, pix.buf, pix.size);
-	return EXIT_SUCCESS;
+	return pix;
 }
 
 u8 *
