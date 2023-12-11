@@ -147,7 +147,6 @@ main(int argc, char **argv)
 				die("execlp: man 1 %s", *argv);
 			break;
 		default:
-			argv[0] = basename(argv[0]);
 			fprintf(stderr,
 			        "Usage: %s [-f]\n"
 			        "       %s -h\n",
