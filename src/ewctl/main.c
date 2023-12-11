@@ -136,18 +136,32 @@ main(int argc, char **argv)
 u8 *
 process(const char *name, int fd, size_t *size)
 {
+	u8 *buf = NULL;
 	struct stat sb;
 
 	if (fstat(fd, &sb) == -1)
 		die("fstat: %s", name);
 
 	if (S_ISREG(sb.st_mode)) {
-		u8 *buf;
 		*size = sb.st_size;
 		buf = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 		if (buf == MAP_FAILED)
 			die("mmap: %s", name);
-		return buf;
-	} else
-		die("TODO: Support read() for streams");
+	} else {
+		size_t len, cap;
+		ssize_t nr;
+		len = cap = 0;
+
+		/* Not the best; but good enough for now */
+		do {
+			cap += sb.st_blksize;
+			if ((buf = realloc(buf, cap)) == NULL)
+				die("realloc");
+			len += nr = read(fd, buf + len, sb.st_blksize);
+		} while (nr > 0);
+		if (nr == -1)
+			die("read: %s", name);
+		*size = len;
+	}
+	return buf;
 }
