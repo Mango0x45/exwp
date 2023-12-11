@@ -198,7 +198,7 @@ main(int argc, char **argv)
 	if ((FD(SIG) = signalfd(-1, &mask, 0)) == -1)
 		die("signalfd");
 
-	/* Setup dæmon socket */
+	/* Setup daemon socket */
 	if ((FD(SOCK) = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
 		die("socket");
 	if (bind(FD(SOCK), &saddr, sizeof(saddr)) == -1)
