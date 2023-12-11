@@ -55,8 +55,6 @@ main(int argc, char **argv)
 		{"help",    no_argument,       0, 'h'},
 		{NULL,      0,                 0, 0  },
 	};
-	(void)pix;
-	(void)fmt;
 
 	*argv = basename(*argv);
 	while ((opt = getopt_long(argc, argv, "d:h", longopts, NULL)) != -1) {
