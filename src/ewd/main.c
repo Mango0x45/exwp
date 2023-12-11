@@ -232,7 +232,6 @@ main(int argc, char **argv)
 		} else if (EVENT(SOCK, POLLIN)) {
 			int cfd, mfd;
 			size_t size;
-			u8 *data;
 			u8 fdbuf[CMSG_SPACE(sizeof(int))], mbuf[sizeof(size_t)];
 			struct iovec iov = {
 				.iov_base = mbuf,
@@ -256,9 +255,7 @@ main(int argc, char **argv)
 			}
 
 			cmsg = CMSG_FIRSTHDR(&msg);
-			data = CMSG_DATA(cmsg);
-			mfd = *(int *)data;
-			// mfd = *(int *)CMSG_DATA(cmsg);
+			mfd = *(int *)CMSG_DATA(cmsg);
 			memcpy(&size, mbuf, sizeof(size_t));
 			printf("Got file of size %zu\n", size);
 			close(mfd);
