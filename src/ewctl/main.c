@@ -32,10 +32,12 @@ struct bs {
 
 struct file {
 	int fd;
+	u8 *buf;
 	size_t size;
 };
 
 static void srv_msg(int, struct file);
+static void bgr2rgb(struct file);
 static struct file jxl_decode(struct bs);
 static u8 *process(const char *, int, size_t *);
 
@@ -99,6 +101,7 @@ main(int argc, char **argv)
 		die("socket");
 	if (connect(sockfd, &saddr, sizeof(saddr)) == -1)
 		die("connect: %s", saddr.sun_path);
+	bgr2rgb(pix);
 	srv_msg(sockfd, pix);
 
 	close(sockfd);
@@ -131,10 +134,19 @@ srv_msg(int sockfd, struct file mmf)
 		die("sendmsg");
 }
 
+void
+bgr2rgb(struct file f)
+{
+	for (size_t i = 0; i < f.size; i += 4) {
+		u8 tmp = f.buf[i + 0];
+		f.buf[i + 0] = f.buf[i + 2];
+		f.buf[i + 2] = tmp;
+	}
+}
+
 struct file
 jxl_decode(struct bs img)
 {
-	u8 *buf;
 	void *tpr;
 	size_t nthrds;
 	struct file pix;
@@ -173,17 +185,17 @@ jxl_decode(struct bs img)
 				die("memfd_create");
 			if (ftruncate(pix.fd, pix.size) == -1)
 				die("ftruncate");
-			buf = mmap(NULL, pix.size, PROT_READ | PROT_WRITE, MAP_SHARED,
-			           pix.fd, 0);
-			if (buf == MAP_FAILED)
+			pix.buf = mmap(NULL, pix.size, PROT_READ | PROT_WRITE, MAP_SHARED,
+			               pix.fd, 0);
+			if (pix.buf == MAP_FAILED)
 				die("mmap");
-			if (JxlDecoderSetImageOutBuffer(d, &fmt, buf, pix.size))
+			if (JxlDecoderSetImageOutBuffer(d, &fmt, pix.buf, pix.size))
 				diex("Failed to set image output buffer");
 			break;
 		case JXL_DEC_NEED_MORE_INPUT:
 			diex("Input image was truncated");
 		case JXL_DEC_ERROR:;
-			JxlSignature sig = JxlSignatureCheck(buf, pix.size);
+			JxlSignature sig = JxlSignatureCheck(pix.buf, pix.size);
 			die("Failed to decode file: %s",
 			    (sig == JXL_SIG_CODESTREAM || sig == JXL_SIG_CONTAINER)
 			        ? "Possibly file"
