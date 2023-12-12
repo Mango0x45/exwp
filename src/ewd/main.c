@@ -339,8 +339,6 @@ err:
 		close(pfd);
 	if (data != NULL)
 		munmap(data, size);
-
-	return;
 }
 
 void
