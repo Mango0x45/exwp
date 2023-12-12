@@ -32,7 +32,7 @@
 #define lengthof(a) (sizeof(a) / sizeof(*(a)))
 
 struct buffer {
-	void *data;  /* Raw pixel data */
+	u8 *data;    /* Raw pixel data */
 	size_t size; /* Size of .data */
 
 	wl_buffer_t *wl_buf;
@@ -67,6 +67,7 @@ void shm_fmt(void *, wl_shm_t *, u32);
 /* Normal functions */
 void cleanup(void);
 void draw(struct output *);
+void draw2(struct output *, int);
 void out_layer_free(struct output *);
 void shm_get_buffer(struct buffer *, wl_shm_t *, u32, u32);
 void surf_create(struct output *);
@@ -257,7 +258,10 @@ main(int argc, char **argv)
 			cmsg = CMSG_FIRSTHDR(&msg);
 			mfd = *(int *)CMSG_DATA(cmsg);
 			memcpy(&size, mbuf, sizeof(size_t));
-			printf("Got file of size %zu\n", size);
+
+			for (size_t i = 0; i < outputs.len; i++)
+				draw2(&outputs.buf[i], mfd);
+
 			close(mfd);
 		}
 #undef EVENT
@@ -382,6 +386,32 @@ draw(struct output *out)
 
 	shm_get_buffer(buf, shm, w, h);
 	memset(buf->data, 0x45, buf->size);
+	wl_surface_set_buffer_scale(out->surf, out->s);
+	wl_surface_attach(out->surf, buf->wl_buf, 0, 0);
+	wl_surface_damage_buffer(out->surf, 0, 0, w, h);
+	wl_surface_commit(out->surf);
+}
+
+void
+draw2(struct output *out, int fd)
+{
+	u32 w = out->w * out->s;
+	u32 h = out->h * out->s;
+	struct buffer *buf = malloc(sizeof(*buf));
+	if (buf == NULL)
+		die("malloc");
+
+	shm_get_buffer(buf, shm, w, h);
+
+	for (size_t left = buf->size; left > 0;) {
+		ssize_t nr = read(fd, buf->data + buf->size - left, left);
+		if (nr == -1) {
+			warn("read: %s", out->human_name);
+			buf_free(buf, NULL);
+		}
+		left -= nr;
+	}
+
 	wl_surface_set_buffer_scale(out->surf, out->s);
 	wl_surface_attach(out->surf, buf->wl_buf, 0, 0);
 	wl_surface_damage_buffer(out->surf, 0, 0, w, h);
