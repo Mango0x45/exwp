@@ -123,10 +123,10 @@ void
 srv_msg(int sockfd, struct file mmf, const char *name)
 {
 	(void)name;
-	u8 m_buf[sizeof(size_t)], fd_buf[CMSG_SPACE(sizeof(int))];
+	u8 fd_buf[CMSG_SPACE(sizeof(int))];
 	struct iovec iov = {
-		.iov_base = m_buf,
-		.iov_len = sizeof(m_buf),
+		.iov_base = &mmf.size,
+		.iov_len = sizeof(mmf.size),
 	};
 	struct msghdr msg = {
 		.msg_iov = &iov,
@@ -139,7 +139,6 @@ srv_msg(int sockfd, struct file mmf, const char *name)
 	cmsg->cmsg_type = SCM_RIGHTS;
 	cmsg->cmsg_len = CMSG_LEN(sizeof(int));
 	*(int *)CMSG_DATA(cmsg) = mmf.fd;
-	memcpy(m_buf, &mmf.size, sizeof(mmf.size));
 
 	if (sendmsg(sockfd, &msg, 0) == -1)
 		die("sendmsg");
