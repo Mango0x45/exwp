@@ -4,6 +4,7 @@
 #include <sys/un.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <stdint.h>
@@ -109,8 +110,12 @@ main(int argc, char **argv)
 	pix = jxl_decode(img);
 	if ((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
 		die("socket");
-	if (connect(sockfd, &saddr, sizeof(saddr)) == -1)
-		die("connect: %s", saddr.sun_path);
+	if (connect(sockfd, &saddr, sizeof(saddr)) == -1) {
+		if (errno == ENOENT)
+			diex("ewd daemon is not running");
+		else
+			die("connect: %s", saddr.sun_path);
+	}
 	abgr2argb(pix);
 	srv_msg(sockfd, pix, name);
 
