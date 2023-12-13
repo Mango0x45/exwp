@@ -45,7 +45,7 @@ struct file {
 };
 
 static void srv_msg(int, struct file);
-static void bgr2rgb(struct file);
+static void abgr2argb(struct file);
 static struct file jxl_decode(struct bs);
 static u8 *process(const char *, int, size_t *);
 
@@ -109,8 +109,8 @@ main(int argc, char **argv)
 		die("socket");
 	if (connect(sockfd, &saddr, sizeof(saddr)) == -1)
 		die("connect: %s", saddr.sun_path);
-	bgr2rgb(pix);
 	srv_msg(sockfd, pix);
+	abgr2argb(pix);
 
 	close(sockfd);
 	close(pix.fd);
@@ -143,7 +143,7 @@ srv_msg(int sockfd, struct file mmf)
 }
 
 void
-bgr2rgb(struct file f)
+abgr2argb(struct file f)
 {
 	for (size_t i = 0; i < f.size; i += 4) {
 		u8 tmp = f.buf[i + 0];
