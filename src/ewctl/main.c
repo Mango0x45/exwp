@@ -33,6 +33,7 @@ typedef uint32_t xrgb;
 #define die(...)    err(EXIT_FAILURE, __VA_ARGS__)
 #define diex(...)   errx(EXIT_FAILURE, __VA_ARGS__)
 #define streq(x, y) (!strcmp(x, y))
+#define lengthof(a) (sizeof(a) / sizeof(*a))
 
 struct bs {
 	u8 *buf;
@@ -45,7 +46,7 @@ struct file {
 	size_t size;
 };
 
-static void srv_msg(int, struct file, const char *);
+static void srv_msg(int, struct file, char *);
 static void abgr2argb(struct file);
 static struct file jxl_decode(struct bs);
 static u8 *process(const char *, int, size_t *);
@@ -125,17 +126,18 @@ main(int argc, char **argv)
 }
 
 void
-srv_msg(int sockfd, struct file mmf, const char *name)
+srv_msg(int sockfd, struct file mmf, char *name)
 {
-	(void)name;
+	size_t nlen = strlen(name);
 	u8 fd_buf[CMSG_SPACE(sizeof(int))];
-	struct iovec iov = {
-		.iov_base = &mmf.size,
-		.iov_len = sizeof(mmf.size),
+	struct iovec iovs[] = {
+		{.iov_base = &mmf.size, .iov_len = sizeof(mmf.size)},
+		{.iov_base = &nlen,     .iov_len = sizeof(nlen)    },
+		{.iov_base = name,      .iov_len = nlen            },
 	};
 	struct msghdr msg = {
-		.msg_iov = &iov,
-		.msg_iovlen = 1,
+		.msg_iov = iovs,
+		.msg_iovlen = lengthof(iovs),
 		.msg_control = fd_buf,
 		.msg_controllen = sizeof(fd_buf),
 	};

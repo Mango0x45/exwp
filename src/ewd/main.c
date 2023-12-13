@@ -1,6 +1,7 @@
 #include <sys/mman.h>
 #include <sys/signalfd.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 #include <sys/un.h>
 
 #include <err.h>
@@ -231,37 +232,58 @@ main(int argc, char **argv)
 				break;
 		} else if (EVENT(SOCK, POLLIN)) {
 			int cfd, mfd;
-			size_t size;
-			u8 fdbuf[CMSG_SPACE(sizeof(int))], mbuf[sizeof(size_t)];
-			struct iovec iov = {
-				.iov_base = mbuf,
-				.iov_len = sizeof(mbuf),
+			char *name = NULL;
+			size_t size, nlen;
+			u8 fdbuf[CMSG_SPACE(sizeof(int))];
+			struct iovec iovs[] = {
+				{.iov_base = &size, .iov_len = sizeof(size)},
+				{.iov_base = &nlen, .iov_len = sizeof(nlen)},
 			};
 			struct msghdr msg = {
-				.msg_iov = &iov,
-				.msg_iovlen = 1,
+				.msg_iov = iovs,
+				.msg_iovlen = lengthof(iovs),
 				.msg_control = fdbuf,
 				.msg_controllen = sizeof(fdbuf),
 			};
 			struct cmsghdr *cmsg;
 
+			cfd = mfd = -1;
 			if ((cfd = accept(FD(SOCK), NULL, NULL)) == -1) {
 				warn("accept");
-				continue;
+				goto err;
 			}
 			if (recvmsg(cfd, &msg, 0) == -1) {
 				warn("recvmsg");
-				continue;
+				goto err;
 			}
 
 			cmsg = CMSG_FIRSTHDR(&msg);
 			mfd = *(int *)CMSG_DATA(cmsg);
-			memcpy(&size, mbuf, sizeof(size_t));
+
+			if (nlen) {
+				struct iovec iov = {.iov_len = nlen};
+
+				if ((name = malloc(nlen + 1)) == NULL) {
+					warn("malloc");
+					goto err;
+				}
+				iov.iov_base = name;
+				if (readv(cfd, &iov, 1) == -1) {
+					warn("readv");
+					goto err;
+				}
+				name[nlen] = 0;
+			}
 
 			for (size_t i = 0; i < outputs.len; i++)
 				draw(&outputs.buf[i], mfd, size);
 
-			close(mfd);
+err:
+			free(name);
+			if (mfd != -1)
+				close(mfd);
+			if (cfd != -1)
+				close(cfd);
 		}
 #undef EVENT
 	}
