@@ -66,8 +66,7 @@ void shm_fmt(void *, wl_shm_t *, u32);
 
 /* Normal functions */
 void cleanup(void);
-void draw(struct output *);
-void draw2(struct output *, int);
+void draw(struct output *, int, size_t);
 void out_layer_free(struct output *);
 void shm_get_buffer(struct buffer *, wl_shm_t *, u32, u32);
 void surf_create(struct output *);
@@ -260,7 +259,7 @@ main(int argc, char **argv)
 			memcpy(&size, mbuf, sizeof(size_t));
 
 			for (size_t i = 0; i < outputs.len; i++)
-				draw2(&outputs.buf[i], mfd);
+				draw(&outputs.buf[i], mfd, size);
 
 			close(mfd);
 		}
@@ -378,30 +377,35 @@ surf_create(struct output *out)
 }
 
 void
-draw(struct output *out)
+draw(struct output *out, int fd, size_t size)
 {
 	u32 w = out->w * out->s;
 	u32 h = out->h * out->s;
-	struct buffer *buf = malloc(sizeof(struct buffer));
-
-	shm_get_buffer(buf, shm, w, h);
-	memset(buf->data, 0x45, buf->size);
-	wl_surface_set_buffer_scale(out->surf, out->s);
-	wl_surface_attach(out->surf, buf->wl_buf, 0, 0);
-	wl_surface_damage_buffer(out->surf, 0, 0, w, h);
-	wl_surface_commit(out->surf);
-}
-
-void
-draw2(struct output *out, int fd)
-{
-	u32 w = out->w * out->s;
-	u32 h = out->h * out->s;
+	wl_shm_pool_t *pool;
 	struct buffer *buf = malloc(sizeof(*buf));
 	if (buf == NULL)
 		die("malloc");
 
-	shm_get_buffer(buf, shm, w, h);
+	buf->size = size;
+	if ((pool = wl_shm_create_pool(shm, fd, size)) == NULL) {
+		warnx("failed to create shm pool");
+		goto err;
+	}
+
+	buf->wl_buf =
+		wl_shm_pool_create_buffer(pool, 0, w, h, w * 4, WL_SHM_FORMAT_XRGB8888);
+	if (buf->wl_buf == NULL) {
+		warnx("failed to create shm pool buffer");
+		goto err;
+	}
+
+	wl_shm_pool_destroy(pool);
+
+	buf->data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if (buf->data == MAP_FAILED)
+		goto err;
+
+	wl_buffer_add_listener(buf->wl_buf, &buf_listener, buf);
 
 	for (size_t left = buf->size; left > 0;) {
 		ssize_t nr = read(fd, buf->data + buf->size - left, left);
@@ -416,6 +420,15 @@ draw2(struct output *out, int fd)
 	wl_surface_attach(out->surf, buf->wl_buf, 0, 0);
 	wl_surface_damage_buffer(out->surf, 0, 0, w, h);
 	wl_surface_commit(out->surf);
+	return;
+
+err:
+	if (buf->wl_buf != NULL)
+		wl_buffer_destroy(buf->wl_buf);
+	if (pool != NULL)
+		wl_shm_pool_destroy(pool);
+	if (buf->data != NULL)
+		munmap(buf->data, size);
 }
 
 void
@@ -487,8 +500,8 @@ out_scale(void *data, wl_output_t *wl_out, i32 scale)
 {
 	struct output *out = data;
 	out->s = scale;
-	if (out->safe_to_draw)
-		draw(out);
+	if (out->safe_to_draw) {
+	} /* TODO: draw() */
 }
 
 void
@@ -513,15 +526,14 @@ ls_conf(void *data, zwlr_layer_surface_v1_t *surf, u32 serial, u32 w, u32 h)
 	struct output *out = data;
 	zwlr_layer_surface_v1_ack_configure(surf, serial);
 
-	/* If the size of the last committed buffer has not change, do not
-	   render a new buffer because it will be identical to the old one. */
+	/* If the size of the last committed buffer has not changed, we don’t need
+	   to do anything. */
 	if (out->safe_to_draw && out->w == w && out->h == h)
 		wl_surface_commit(out->surf);
 	else {
 		out->w = w;
 		out->h = h;
 		out->safe_to_draw = true;
-		draw(out);
 	}
 }
 
