@@ -44,7 +44,7 @@ struct file {
 	size_t size;
 };
 
-static void srv_msg(int, struct file);
+static void srv_msg(int, struct file, const char *);
 static void abgr2argb(struct file);
 static struct file jxl_decode(struct bs);
 static u8 *process(const char *, int, size_t *);
@@ -62,6 +62,7 @@ usage(const char *argv0)
 int
 main(int argc, char **argv)
 {
+	char *name = "";
 	int opt, sockfd;
 	struct file pix;
 	struct bs img;
@@ -79,7 +80,8 @@ main(int argc, char **argv)
 	while ((opt = getopt_long(argc, argv, "d:h", longopts, NULL)) != -1) {
 		switch (opt) {
 		case 'd':
-			diex("TODO: Allow selecting a display");
+			name = optarg;
+			break;
 		case 'h':
 			if (execlp("man", "man", "1", *argv, NULL) == -1)
 				die("execlp: man 1 %s", *argv);
@@ -109,8 +111,8 @@ main(int argc, char **argv)
 		die("socket");
 	if (connect(sockfd, &saddr, sizeof(saddr)) == -1)
 		die("connect: %s", saddr.sun_path);
-	srv_msg(sockfd, pix);
 	abgr2argb(pix);
+	srv_msg(sockfd, pix, name);
 
 	close(sockfd);
 	close(pix.fd);
@@ -118,8 +120,9 @@ main(int argc, char **argv)
 }
 
 void
-srv_msg(int sockfd, struct file mmf)
+srv_msg(int sockfd, struct file mmf, const char *name)
 {
+	(void)name;
 	u8 m_buf[sizeof(size_t)], fd_buf[CMSG_SPACE(sizeof(int))];
 	struct iovec iov = {
 		.iov_base = m_buf,
