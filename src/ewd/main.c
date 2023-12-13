@@ -430,16 +430,6 @@ draw(struct output *out, int fd, size_t size)
 		goto err;
 
 	wl_buffer_add_listener(buf->wl_buf, &buf_listener, buf);
-
-	for (size_t left = buf->size; left > 0;) {
-		ssize_t nr = read(fd, buf->data + buf->size - left, left);
-		if (nr == -1) {
-			warn("read: %s", out->human_name);
-			buf_free(buf, NULL);
-		}
-		left -= nr;
-	}
-
 	wl_surface_set_buffer_scale(out->surf, out->s);
 	wl_surface_attach(out->surf, buf->wl_buf, 0, 0);
 	wl_surface_damage_buffer(out->surf, 0, 0, w, h);
