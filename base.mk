@@ -1,9 +1,9 @@
 MAKEFLAGS = -j$(shell nproc)
 
 CC = cc
-CFLAGS += \
+CFLAGS := \
 	-Wall -Wextra -Wpedantic -Werror -D_GNU_SOURCE -pipe \
-	$(shell pkg-config --cflags $(lib) 2>/dev/null)
+	$(CFLAGS) $(shell pkg-config --cflags $(lib) 2>/dev/null)
 LDLIBS += $(shell pkg-config --libs $(lib) 2>/dev/null)
 
 ifeq ($(BUILD),release)
