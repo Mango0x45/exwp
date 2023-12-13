@@ -275,8 +275,10 @@ main(int argc, char **argv)
 				name[nlen] = 0;
 			}
 
-			for (size_t i = 0; i < outputs.len; i++)
-				draw(&outputs.buf[i], mfd, size);
+			for (size_t i = 0; i < outputs.len; i++) {
+				if (name == NULL || streq(outputs.buf[i].human_name, name))
+					draw(&outputs.buf[i], mfd, size);
+			}
 
 err:
 			free(name);
