@@ -6,7 +6,6 @@
 
 #include <err.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <getopt.h>
 #include <inttypes.h>
 #include <poll.h>
