@@ -69,7 +69,6 @@ void shm_fmt(void *, wl_shm_t *, u32);
 void cleanup(void);
 void draw(struct output *, int, size_t);
 void out_layer_free(struct output *);
-void shm_get_buffer(struct buffer *, wl_shm_t *, u32, u32);
 void surf_create(struct output *);
 void *thread_handler(void *);
 
@@ -294,78 +293,6 @@ err:
 		close(fds[i].fd);
 	return EXIT_SUCCESS;
 #undef FD
-}
-
-void
-shm_get_buffer(struct buffer *buf, wl_shm_t *shm, u32 w, u32 h)
-{
-	int pfd;
-	size_t size = 0;
-	unsigned mfd_flags, f_flags;
-	void *data;
-	wl_buffer_t *wl_buf;
-	wl_shm_pool_t *pool;
-
-	data = wl_buf = (void *)(pool = NULL);
-
-	/* Kernels older than 6.3 fail with EINVAL when using NOEXEC_SEAL */
-	mfd_flags = MFD_CLOEXEC | MFD_ALLOW_SEALING | MFD_NOEXEC_SEAL;
-	pfd = memfd_create(MFD_NAME, mfd_flags);
-	if (pfd == -1 && errno == EINVAL) {
-		mfd_flags &= ~MFD_NOEXEC_SEAL;
-		pfd = memfd_create(MFD_NAME, mfd_flags);
-	}
-	if (pfd == -1) {
-		warn("memfd_create");
-		goto err;
-	}
-
-	/* Total size */
-	size = w * h * 4;
-	if (ftruncate(pfd, size) == -1)
-		goto err;
-
-	data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, pfd, 0);
-	if (data == MAP_FAILED)
-		goto err;
-
-	f_flags = F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL;
-	if (fcntl(pfd, F_ADD_SEALS, f_flags) == -1)
-		warn("fcntl: failed to add seals");
-
-	if ((pool = wl_shm_create_pool(shm, pfd, size)) == NULL) {
-		warnx("failed to create shm pool");
-		goto err;
-	}
-
-	wl_buf =
-		wl_shm_pool_create_buffer(pool, 0, w, h, w * 4, WL_SHM_FORMAT_XRGB8888);
-	if (wl_buf == NULL) {
-		warnx("failed to create shm pool buffer");
-		goto err;
-	}
-
-	wl_shm_pool_destroy(pool);
-	close(pfd);
-
-	*buf = (struct buffer){
-		.size = size,
-		.data = data,
-		.wl_buf = wl_buf,
-	};
-
-	wl_buffer_add_listener(buf->wl_buf, &buf_listener, buf);
-	return;
-
-err:
-	if (wl_buf != NULL)
-		wl_buffer_destroy(wl_buf);
-	if (pool != NULL)
-		wl_shm_pool_destroy(pool);
-	if (pfd != -1)
-		close(pfd);
-	if (data != NULL)
-		munmap(data, size);
 }
 
 void
