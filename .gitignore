@@ -10,4 +10,5 @@ ewd
 
 # Temporary files
 out.*
+*.jxl
 *.tmp
