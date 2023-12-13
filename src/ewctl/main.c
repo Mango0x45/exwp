@@ -55,7 +55,7 @@ static void
 usage(const char *argv0)
 {
 	fprintf(stderr,
-	        "Usage: %s [-d display] [file]\n"
+	        "Usage: %s [-d name] [file]\n"
 	        "       %s -h\n",
 	        argv0, argv0);
 	exit(EXIT_FAILURE);
