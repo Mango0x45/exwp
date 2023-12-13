@@ -1,7 +1,12 @@
+gen = find src/* -maxdepth 0 -exec $(MAKE) -C {} $1 \;
+
 all:
-	find src/* -maxdepth 0 -exec $(MAKE) -C {} \;
+	$(call gen)
 
 clean:
-	find src/* -maxdepth 0 -exec $(MAKE) -C {} clean \;
+	$(call gen,clean)
 
-.PHONY: clean
+install:
+	$(call gen,install)
+
+.PHONY: clean install
