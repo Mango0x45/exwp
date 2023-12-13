@@ -15,6 +15,14 @@
 #include <jxl/decode.h>
 #include <jxl/thread_parallel_runner.h>
 
+#if __STDC_VERSION__ < 202311L
+#	ifdef __GNUC__
+#		define unreachable() __builtin_unreachable()
+#	else
+#		define unreachable()
+#	endif
+#endif
+
 typedef uint8_t u8;
 typedef uint32_t xrgb;
 
@@ -75,7 +83,7 @@ main(int argc, char **argv)
 		case 'h':
 			if (execlp("man", "man", "1", *argv, NULL) == -1)
 				die("execlp: man 1 %s", *argv);
-			break;
+			unreachable();
 		default:
 			usage(*argv);
 		}
