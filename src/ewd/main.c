@@ -334,14 +334,14 @@ draw(struct output *out, int fd, u32 w, u32 h)
 	if (buf == NULL)
 		die("malloc");
 
-	buf->size = w * h * 4;
+	buf->size = w * h * sizeof(xrgb);
 	if ((pool = wl_shm_create_pool(shm, fd, buf->size)) == NULL) {
 		warnx("failed to create shm pool");
 		goto err;
 	}
 
-	buf->wl_buf =
-		wl_shm_pool_create_buffer(pool, 0, w, h, w * 4, WL_SHM_FORMAT_XRGB8888);
+	buf->wl_buf = wl_shm_pool_create_buffer(pool, 0, w, h, w * sizeof(xrgb),
+	                                        WL_SHM_FORMAT_XRGB8888);
 	if (buf->wl_buf == NULL) {
 		warnx("failed to create shm pool buffer");
 		goto err;
