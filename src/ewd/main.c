@@ -371,32 +371,32 @@ err:
 void
 reg_add(void *data, wl_registry_t *reg, u32 name, const char *iface, u32 ver)
 {
-#define assert_ver(s, n) \
+#define assert_ver(n) \
 	if (ver < n) { \
 		diex("The v%" PRIu32 " %s interface is required, but the compositor " \
 		     "only supports v%" PRIu32, \
-		     n, s, ver); \
+		     n, iface, ver); \
 	}
 
 	if (streq(iface, wl_compositor_interface.name)) {
-		assert_ver("compositor", 4);
+		assert_ver(4);
 		comp = wl_registry_bind(reg, name, &wl_compositor_interface, 4);
 	} else if (streq(iface, wl_shm_interface.name)) {
-		assert_ver("shm", 1);
+		assert_ver(1);
 		shm = wl_registry_bind(reg, name, &wl_shm_interface, 1);
 		wl_shm_add_listener(shm, &shm_listener, NULL);
 	} else if (streq(iface, wl_output_interface.name)) {
 		struct output *out;
 		struct wl_output *wl_out;
 
-		assert_ver("output", 4);
+		assert_ver(4);
 		wl_out = wl_registry_bind(reg, name, &wl_output_interface, 4);
 		da_append(&outputs, ((struct output){.wl_out = wl_out, .name = name}));
 		out = &outputs.buf[outputs.len - 1];
 		wl_output_add_listener(wl_out, &out_listener, out);
 		surf_create(out);
 	} else if (streq(iface, zwlr_layer_shell_v1_interface.name)) {
-		assert_ver("layer shell", 2);
+		assert_ver(2);
 		lshell = wl_registry_bind(reg, name, &zwlr_layer_shell_v1_interface, 2);
 	}
 #undef assert_ver
