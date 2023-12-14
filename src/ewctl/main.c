@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,11 +36,13 @@ static void abgr2argb(struct img);
 static struct img jxl_decode(struct bs);
 static u8 *process(const char *, int, size_t *);
 
+static bool cflag;
+
 static void
 usage(const char *argv0)
 {
 	fprintf(stderr,
-	        "Usage: %s [-d name] [file]\n"
+	        "Usage: %s [-c] [-d name] [file]\n"
 	        "       %s -h\n",
 	        argv0, argv0);
 	exit(EXIT_FAILURE);
@@ -57,14 +60,18 @@ main(int argc, char **argv)
 		.sun_path = SOCK_PATH,
 	};
 	struct option longopts[] = {
+		{"clear",   no_argument,       0, 'c'},
 		{"display", required_argument, 0, 'd'},
 		{"help",    no_argument,       0, 'h'},
 		{NULL,      0,                 0, 0  },
 	};
 
 	*argv = basename(*argv);
-	while ((opt = getopt_long(argc, argv, "d:h", longopts, NULL)) != -1) {
+	while ((opt = getopt_long(argc, argv, "cd:h", longopts, NULL)) != -1) {
 		switch (opt) {
+		case 'c':
+			cflag = true;
+			break;
 		case 'd':
 			name = optarg;
 			break;
@@ -80,19 +87,28 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	if (argc > 1)
-		usage(*argv);
-	if (argc == 0 || streq(argv[0], "-"))
-		img_e.buf = process("-", STDIN_FILENO, &img_e.size);
-	else {
-		int fd = open(argv[0], O_RDONLY);
-		if (fd == -1)
-			die("open: %s", argv[0]);
-		img_e.buf = process(argv[0], fd, &img_e.size);
-		close(fd);
+	if (cflag) {
+		img_d = (struct img){
+			.w = 0,
+			.h = 0,
+			.size = 0,
+			.buf = (u8 *){0},
+		};
+	} else {
+		if (argc > 1)
+			usage(*argv);
+		if (argc == 0 || streq(argv[0], "-"))
+			img_e.buf = process("-", STDIN_FILENO, &img_e.size);
+		else {
+			int fd = open(argv[0], O_RDONLY);
+			if (fd == -1)
+				die("open: %s", argv[0]);
+			img_e.buf = process(argv[0], fd, &img_e.size);
+			close(fd);
+		}
+		img_d = jxl_decode(img_e);
 	}
 
-	img_d = jxl_decode(img_e);
 	if ((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
 		die("socket");
 	if (connect(sockfd, &saddr, sizeof(saddr)) == -1) {

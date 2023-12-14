@@ -16,6 +16,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <wayland-client-protocol.h>
 #include <wayland-client.h>
 
 #include "common.h"
@@ -65,6 +66,7 @@ void shm_fmt(void *, wl_shm_t *, u32);
 
 /* Normal functions */
 void cleanup(void);
+void clear(struct output *);
 void draw(struct output *, int, u32, u32);
 void out_layer_free(struct output *);
 void surf_create(struct output *);
@@ -276,8 +278,12 @@ main(int argc, char **argv)
 			}
 
 			for (size_t i = 0; i < outputs.len; i++) {
-				if (name == NULL || streq(outputs.buf[i].human_name, name))
-					draw(&outputs.buf[i], mfd, w, h);
+				if (name == NULL || streq(outputs.buf[i].human_name, name)) {
+					if (w * h == 0)
+						clear(&outputs.buf[i]);
+					else
+						draw(&outputs.buf[i], mfd, w, h);
+				}
 			}
 
 err:
@@ -327,6 +333,13 @@ surf_create(struct output *out)
 	zwlr_layer_surface_v1_add_listener(out->layer, &ls_listener, out);
 
 	wl_surface_commit(out->surf);
+}
+
+void
+clear(struct output *out)
+{
+	out_layer_free(out);
+	surf_create(out);
 }
 
 void
