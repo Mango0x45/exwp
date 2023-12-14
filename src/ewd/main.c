@@ -66,12 +66,12 @@ void out_layer_free(struct output *);
 void surf_create(struct output *);
 void *thread_handler(void *);
 
-static struct wl_compositor *comp;
-static struct wl_display *disp;
-static struct wl_registry *reg;
-static struct wl_shm *shm;
-static struct wp_viewporter *vport;
-static struct zwlr_layer_shell_v1 *lshell;
+static wl_compositor_t *comp;
+static wl_display_t *disp;
+static wl_registry_t *reg;
+static wl_shm_t *shm;
+static wp_viewporter_t *vport;
+static zwlr_layer_shell_v1_t *lshell;
 
 /* We use this to check in the cleanup routine whether or not we need to unlink
    the daemon’s socket.  Without this check, starting a second daemon while a
