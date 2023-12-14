@@ -16,25 +16,7 @@
 #include <jxl/decode.h>
 #include <jxl/thread_parallel_runner.h>
 
-#if __STDC_VERSION__ < 202311L
-#	ifdef __GNUC__
-#		define unreachable() __builtin_unreachable()
-#	else
-#		define unreachable()
-#	endif
-#endif
-
-typedef uint8_t u8;
-typedef uint32_t u32;
-typedef uint32_t xrgb;
-
-#define MFD_NAME  "exwp-client-to-daemon"
-#define SOCK_PATH "/tmp/foo.sock"
-
-#define die(...)    err(EXIT_FAILURE, __VA_ARGS__)
-#define diex(...)   errx(EXIT_FAILURE, __VA_ARGS__)
-#define streq(x, y) (!strcmp(x, y))
-#define lengthof(a) (sizeof(a) / sizeof(*a))
+#include "common.h"
 
 struct bs {
 	u8 *buf;
@@ -203,7 +185,7 @@ jxl_decode(struct bs img)
 		case JXL_DEC_NEED_IMAGE_OUT_BUFFER:
 			if (JxlDecoderImageOutBufferSize(d, &fmt, &pix.size))
 				diex("Failed to get image output buffer size");
-			if ((pix.fd = memfd_create(MFD_NAME, 0)) == -1)
+			if ((pix.fd = memfd_create("ewctl-mem", 0)) == -1)
 				die("memfd_create");
 			if (ftruncate(pix.fd, pix.size) == -1)
 				die("ftruncate");

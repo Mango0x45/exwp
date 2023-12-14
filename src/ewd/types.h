@@ -1,10 +1,6 @@
 #ifndef EWD_TYPES_H
 #define EWD_TYPES_H
 
-typedef uint8_t u8;
-typedef int32_t i32;
-typedef uint32_t u32;
-
 typedef struct wl_buffer wl_buffer_t;
 typedef struct wl_output wl_output_t;
 typedef struct wl_region wl_region_t;

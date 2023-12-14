@@ -18,18 +18,12 @@
 
 #include <wayland-client.h>
 
+#include "common.h"
 #include "da.h"
 #include "types.h"
 #include "wlr-layer-shell-unstable-v1.h"
 
-#define MFD_NAME     "exwp-shm-pool"
-#define SOCK_PATH    "/tmp/foo.sock"
 #define SOCK_BACKLOG 128
-
-#define die(...)    err(EXIT_FAILURE, __VA_ARGS__)
-#define diex(...)   errx(EXIT_FAILURE, __VA_ARGS__)
-#define streq(a, b) (!strcmp(a, b))
-#define lengthof(a) (sizeof(a) / sizeof(*(a)))
 
 struct buffer {
 	u8 *data;    /* Raw pixel data */
