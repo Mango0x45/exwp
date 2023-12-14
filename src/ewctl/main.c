@@ -192,6 +192,7 @@ jxl_decode(struct bs img)
 
 	if (JxlDecoderSetInput(d, img.buf, img.size))
 		diex("Failed to set input data");
+	JxlDecoderCloseInput(d);
 
 	while ((res = JxlDecoderProcessInput(d)) != JXL_DEC_FULL_IMAGE) {
 		switch (res) {
