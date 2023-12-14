@@ -21,6 +21,7 @@
 #include "common.h"
 #include "da.h"
 #include "types.h"
+#include "viewporter.h"
 #include "wlr-layer-shell-unstable-v1.h"
 
 #define SOCK_BACKLOG 128
@@ -69,6 +70,7 @@ static struct wl_compositor *comp;
 static struct wl_display *disp;
 static struct wl_registry *reg;
 static struct wl_shm *shm;
+static struct wp_viewporter *vport;
 static struct zwlr_layer_shell_v1 *lshell;
 
 /* We use this to check in the cleanup routine whether or not we need to unlink
@@ -399,6 +401,9 @@ reg_add(void *data, wl_registry_t *reg, u32 name, const char *iface, u32 ver)
 	} else if (is(zwlr_layer_shell_v1_interface)) {
 		assert_ver(2);
 		lshell = wl_registry_bind(reg, name, &zwlr_layer_shell_v1_interface, 2);
+	} else if (is(wp_viewporter_interface)) {
+		assert_ver(1);
+		vport = wl_registry_bind(reg, name, &wp_viewporter_interface, 1);
 	}
 #undef is
 #undef assert_ver
@@ -535,6 +540,8 @@ cleanup(void)
 		free(out.human_name);
 	}
 	free(outputs.buf);
+	if (vport != NULL)
+		wp_viewporter_destroy(vport);
 	if (lshell != NULL)
 		zwlr_layer_shell_v1_destroy(lshell);
 	if (shm != NULL)
