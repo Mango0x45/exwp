@@ -66,7 +66,7 @@ void shm_fmt(void *, wl_shm_t *, u32);
 
 /* Normal functions */
 void cleanup(void);
-void draw(struct output *, int, size_t);
+void draw(struct output *, int, u32, u32);
 void out_layer_free(struct output *);
 void surf_create(struct output *);
 void *thread_handler(void *);
@@ -231,10 +231,12 @@ main(int argc, char **argv)
 		} else if (EVENT(SOCK, POLLIN)) {
 			int cfd, mfd;
 			char *name = NULL;
-			size_t size, nlen;
+			size_t nlen;
+			u32 w, h;
 			u8 fdbuf[CMSG_SPACE(sizeof(int))];
 			struct iovec iovs[] = {
-				{.iov_base = &size, .iov_len = sizeof(size)},
+				{.iov_base = &w,    .iov_len = sizeof(w)   },
+				{.iov_base = &h,    .iov_len = sizeof(h)   },
 				{.iov_base = &nlen, .iov_len = sizeof(nlen)},
 			};
 			struct msghdr msg = {
@@ -275,7 +277,7 @@ main(int argc, char **argv)
 
 			for (size_t i = 0; i < outputs.len; i++) {
 				if (name == NULL || streq(outputs.buf[i].human_name, name))
-					draw(&outputs.buf[i], mfd, size);
+					draw(&outputs.buf[i], mfd, w, h);
 			}
 
 err:
@@ -327,17 +329,17 @@ surf_create(struct output *out)
 }
 
 void
-draw(struct output *out, int fd, size_t size)
+draw(struct output *out, int fd, u32 w, u32 h)
 {
-	u32 w = out->w * out->s;
-	u32 h = out->h * out->s;
+	// u32 w = out->w * out->s;
+	// u32 h = out->h * out->s;
 	wl_shm_pool_t *pool;
 	struct buffer *buf = malloc(sizeof(*buf));
 	if (buf == NULL)
 		die("malloc");
 
-	buf->size = size;
-	if ((pool = wl_shm_create_pool(shm, fd, size)) == NULL) {
+	buf->size = w * h * 4;
+	if ((pool = wl_shm_create_pool(shm, fd, buf->size)) == NULL) {
 		warnx("failed to create shm pool");
 		goto err;
 	}
@@ -351,7 +353,8 @@ draw(struct output *out, int fd, size_t size)
 
 	wl_shm_pool_destroy(pool);
 
-	buf->data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	buf->data =
+		mmap(NULL, buf->size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (buf->data == MAP_FAILED)
 		goto err;
 
@@ -368,7 +371,7 @@ err:
 	if (pool != NULL)
 		wl_shm_pool_destroy(pool);
 	if (buf->data != NULL)
-		munmap(buf->data, size);
+		munmap(buf->data, buf->size);
 }
 
 void

@@ -25,6 +25,7 @@
 #endif
 
 typedef uint8_t u8;
+typedef uint32_t u32;
 typedef uint32_t xrgb;
 
 #define MFD_NAME  "exwp-client-to-daemon"
@@ -40,15 +41,16 @@ struct bs {
 	size_t size;
 };
 
-struct file {
+struct img {
 	int fd;
 	u8 *buf;
+	u32 w, h;
 	size_t size;
 };
 
-static void srv_msg(int, struct file, char *);
-static void abgr2argb(struct file);
-static struct file jxl_decode(struct bs);
+static void srv_msg(int, struct img, char *);
+static void abgr2argb(struct img);
+static struct img jxl_decode(struct bs);
 static u8 *process(const char *, int, size_t *);
 
 static void
@@ -66,8 +68,8 @@ main(int argc, char **argv)
 {
 	char *name = "";
 	int opt, sockfd;
-	struct file pix;
-	struct bs img;
+	struct img img_d;
+	struct bs img_e;
 	struct sockaddr_un saddr = {
 		.sun_family = AF_UNIX,
 		.sun_path = SOCK_PATH,
@@ -99,16 +101,16 @@ main(int argc, char **argv)
 	if (argc > 1)
 		usage(*argv);
 	if (argc == 0 || streq(argv[0], "-"))
-		img.buf = process("-", STDIN_FILENO, &img.size);
+		img_e.buf = process("-", STDIN_FILENO, &img_e.size);
 	else {
 		int fd = open(argv[0], O_RDONLY);
 		if (fd == -1)
 			die("open: %s", argv[0]);
-		img.buf = process(argv[0], fd, &img.size);
+		img_e.buf = process(argv[0], fd, &img_e.size);
 		close(fd);
 	}
 
-	pix = jxl_decode(img);
+	img_d = jxl_decode(img_e);
 	if ((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
 		die("socket");
 	if (connect(sockfd, &saddr, sizeof(saddr)) == -1) {
@@ -117,23 +119,24 @@ main(int argc, char **argv)
 		else
 			die("connect: %s", saddr.sun_path);
 	}
-	abgr2argb(pix);
-	srv_msg(sockfd, pix, name);
+	abgr2argb(img_d);
+	srv_msg(sockfd, img_d, name);
 
 	close(sockfd);
-	close(pix.fd);
+	close(img_d.fd);
 	return EXIT_SUCCESS;
 }
 
 void
-srv_msg(int sockfd, struct file mmf, char *name)
+srv_msg(int sockfd, struct img mmf, char *name)
 {
 	size_t nlen = strlen(name);
 	u8 fd_buf[CMSG_SPACE(sizeof(int))];
 	struct iovec iovs[] = {
-		{.iov_base = &mmf.size, .iov_len = sizeof(mmf.size)},
-		{.iov_base = &nlen,     .iov_len = sizeof(nlen)    },
-		{.iov_base = name,      .iov_len = nlen            },
+		{.iov_base = &mmf.w, .iov_len = sizeof(mmf.w)},
+		{.iov_base = &mmf.h, .iov_len = sizeof(mmf.h)},
+		{.iov_base = &nlen,  .iov_len = sizeof(nlen) },
+		{.iov_base = name,   .iov_len = nlen         },
 	};
 	struct msghdr msg = {
 		.msg_iov = iovs,
@@ -152,7 +155,7 @@ srv_msg(int sockfd, struct file mmf, char *name)
 }
 
 void
-abgr2argb(struct file f)
+abgr2argb(struct img f)
 {
 	for (size_t i = 0; i < f.size; i += 4) {
 		u8 tmp = f.buf[i + 0];
@@ -161,14 +164,15 @@ abgr2argb(struct file f)
 	}
 }
 
-struct file
+struct img
 jxl_decode(struct bs img)
 {
 	void *tpr;
 	size_t nthrds;
-	struct file pix;
+	struct img pix;
 	JxlDecoder *d;
 	JxlDecoderStatus res;
+	JxlBasicInfo info;
 	JxlPixelFormat fmt = {
 		.align = 0,
 		.data_type = JXL_TYPE_UINT8,
@@ -222,6 +226,12 @@ jxl_decode(struct bs img)
 			warnx("Unexpected result from JxlDecoderProcessInput: %d", res);
 		}
 	}
+
+	if (JxlDecoderGetBasicInfo(d, &info))
+		diex("Failed to get dimensions of JXL image");
+
+	pix.w = info.xsize;
+	pix.h = info.ysize;
 
 	JxlThreadParallelRunnerDestroy(tpr);
 	JxlDecoderDestroy(d);
