@@ -35,12 +35,16 @@ struct buffer {
 
 struct output {
 	u32 name;          /* Wayland output name */
-	u32 s, w, h;       /* Display scale, -width, and -height */
+	u32 s;             /* Display scale */
 	bool safe_to_draw; /* Safe to draw new frame? */
 	char *human_name;  /* Human-readable name (e.g. ‘eDP-1’) */
+	struct {
+		u32 w, h;
+	} disp, img; /* Display- and image dimensions */
 
 	wl_output_t *wl_out;
 	wl_surface_t *surf;
+	wp_viewport_t *vp;
 	zwlr_layer_surface_v1_t *layer;
 };
 
@@ -321,6 +325,7 @@ surf_create(struct output *out)
 	zwlr_layer_surface_v1_set_exclusive_zone(out->layer, -1);
 	zwlr_layer_surface_v1_set_anchor(out->layer, anchor);
 	zwlr_layer_surface_v1_add_listener(out->layer, &ls_listener, out);
+
 	wl_surface_commit(out->surf);
 }
 
@@ -334,6 +339,8 @@ draw(struct output *out, int fd, u32 w, u32 h)
 	if (buf == NULL)
 		die("malloc");
 
+	out->img.w = w;
+	out->img.h = h;
 	buf->size = w * h * sizeof(xrgb);
 	if ((pool = wl_shm_create_pool(shm, fd, buf->size)) == NULL) {
 		warnx("failed to create shm pool");
@@ -354,6 +361,12 @@ draw(struct output *out, int fd, u32 w, u32 h)
 	if (buf->data == MAP_FAILED)
 		goto err;
 
+	if (out->vp == NULL) {
+		out->vp = wp_viewporter_get_viewport(vport, out->surf);
+		wp_viewport_set_destination(out->vp, out->disp.w, out->disp.h);
+	}
+	wp_viewport_set_source(out->vp, 0, 0, wl_fixed_from_int(out->img.w),
+	                       wl_fixed_from_int(out->img.h));
 	wl_buffer_add_listener(buf->wl_buf, &buf_listener, buf);
 	wl_surface_set_buffer_scale(out->surf, out->s);
 	wl_surface_attach(out->surf, buf->wl_buf, 0, 0);
@@ -428,8 +441,8 @@ reg_del(void *data, wl_registry_t *reg, u32 name)
 void
 out_mode(void *data, wl_output_t *out, u32 flags, i32 w, i32 h, i32 fps)
 {
-	((struct output *)data)->w = w;
-	((struct output *)data)->h = h;
+	((struct output *)data)->disp.w = w;
+	((struct output *)data)->disp.h = h;
 }
 
 void
@@ -472,11 +485,11 @@ ls_conf(void *data, zwlr_layer_surface_v1_t *surf, u32 serial, u32 w, u32 h)
 
 	/* If the size of the last committed buffer has not changed, we don’t need
 	   to do anything. */
-	if (out->safe_to_draw && out->w == w && out->h == h)
+	if (out->safe_to_draw && out->disp.w == w && out->disp.h == h)
 		wl_surface_commit(out->surf);
 	else {
-		out->w = w;
-		out->h = h;
+		out->disp.w = w;
+		out->disp.h = h;
 		out->safe_to_draw = true;
 	}
 }
@@ -505,6 +518,10 @@ shm_fmt(void *data, wl_shm_t *shm, u32 fmt)
 void
 out_layer_free(struct output *out)
 {
+	if (out->vp != NULL) {
+		wp_viewport_destroy(out->vp);
+		out->vp = NULL;
+	}
 	if (out->layer != NULL) {
 		zwlr_layer_surface_v1_destroy(out->layer);
 		out->layer = NULL;
