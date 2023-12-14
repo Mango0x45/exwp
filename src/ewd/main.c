@@ -377,15 +377,16 @@ reg_add(void *data, wl_registry_t *reg, u32 name, const char *iface, u32 ver)
 		     "only supports v%" PRIu32, \
 		     n, iface, ver); \
 	}
+#define is(s) streq(iface, s.name)
 
-	if (streq(iface, wl_compositor_interface.name)) {
+	if (is(wl_compositor_interface)) {
 		assert_ver(4);
 		comp = wl_registry_bind(reg, name, &wl_compositor_interface, 4);
-	} else if (streq(iface, wl_shm_interface.name)) {
+	} else if (is(wl_shm_interface)) {
 		assert_ver(1);
 		shm = wl_registry_bind(reg, name, &wl_shm_interface, 1);
 		wl_shm_add_listener(shm, &shm_listener, NULL);
-	} else if (streq(iface, wl_output_interface.name)) {
+	} else if (is(wl_output_interface)) {
 		struct output *out;
 		struct wl_output *wl_out;
 
@@ -395,10 +396,11 @@ reg_add(void *data, wl_registry_t *reg, u32 name, const char *iface, u32 ver)
 		out = &outputs.buf[outputs.len - 1];
 		wl_output_add_listener(wl_out, &out_listener, out);
 		surf_create(out);
-	} else if (streq(iface, zwlr_layer_shell_v1_interface.name)) {
+	} else if (is(zwlr_layer_shell_v1_interface)) {
 		assert_ver(2);
 		lshell = wl_registry_bind(reg, name, &zwlr_layer_shell_v1_interface, 2);
 	}
+#undef is
 #undef assert_ver
 }
 
