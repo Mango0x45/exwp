@@ -198,8 +198,13 @@ main(int argc, char **argv)
 	memcpy(saddr.sun_path, ewd_sock_path(), sizeof(saddr.sun_path));
 	if ((FD(SOCK) = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
 		die("socket");
-	if (bind(FD(SOCK), &saddr, sizeof(saddr)) == -1)
-		die("bind");
+	if (bind(FD(SOCK), &saddr, sizeof(saddr)) == -1) {
+		if (errno != EADDRINUSE)
+			die("bind");
+		diex("socket at %s already exists; another daemon may already be "
+		     "running",
+		     saddr.sun_path);
+	}
 	sock_bound = true;
 	if (listen(FD(SOCK), SOCK_BACKLOG) == -1)
 		die("listen");
