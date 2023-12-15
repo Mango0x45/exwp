@@ -20,6 +20,12 @@
 
 #include "common.h"
 
+#define warnx(...) \
+	do { \
+		warnx(__VA_ARGS__); \
+		rv = EXIT_FAILURE; \
+	} while (0)
+
 struct bs {
 	u8 *buf;
 	size_t size;
@@ -37,6 +43,7 @@ static void abgr2argb(struct img);
 static struct img jxl_decode(struct bs);
 static u8 *process(const char *, int, size_t *);
 
+static int rv;
 static bool cflag;
 
 static void
@@ -87,6 +94,9 @@ main(int argc, char **argv)
 	argv += optind;
 
 	if (cflag) {
+		if (argc == 1)
+			warnx("Ignoring file argument ‘%s’", argv[0]);
+
 		img_d = (struct img){
 			.w = 0,
 			.h = 0,
@@ -122,7 +132,7 @@ main(int argc, char **argv)
 
 	close(sockfd);
 	close(img_d.fd);
-	return EXIT_SUCCESS;
+	return rv;
 }
 
 void
