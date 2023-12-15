@@ -502,8 +502,10 @@ ls_close(void *data, zwlr_layer_surface_v1_t *surf)
 	/* Don’t trust ‘output’ to be valid, in case compositor destroyed if
 	   before calling closed() */
 	for (size_t i = 0; i < outputs.len; i++) {
-		if (out->name == outputs.buf[i].name)
+		if (out->name == outputs.buf[i].name) {
 			out_layer_free(out);
+			return;
+		}
 	}
 }
 
