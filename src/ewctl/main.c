@@ -124,8 +124,7 @@ main(int argc, char **argv)
 	if (connect(sockfd, &saddr, sizeof(saddr)) == -1) {
 		if (errno == ENOENT)
 			diex("ewd daemon is not running");
-		else
-			die("connect: %s", saddr.sun_path);
+		die("connect: %s", saddr.sun_path);
 	}
 	abgr2argb(img_d);
 	srv_msg(sockfd, img_d, name);
