@@ -9,8 +9,8 @@
 
 #define SOCK_PATH_MAX sizeof(((struct sockaddr_un *)0)->sun_path)
 
-enum ewd_error {
-	EUNSET = 1,
+enum {
+	EUNSET,
 	EEMPTY,
 	ELONG,
 };
