@@ -133,7 +133,6 @@ main(int argc, char **argv)
 	};
 	struct sockaddr_un saddr = {
 		.sun_family = AF_UNIX,
-		.sun_path = SOCK_PATH,
 	};
 	struct pollfd fds[] = {
 		{.events = POLLIN},
@@ -199,6 +198,7 @@ main(int argc, char **argv)
 		die("signalfd");
 
 	/* Setup daemon socket */
+	memcpy(saddr.sun_path, ewd_sock_path(), sizeof(saddr.sun_path));
 	if ((FD(SOCK) = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
 		die("socket");
 	if (bind(FD(SOCK), &saddr, sizeof(saddr)) == -1)
@@ -560,7 +560,7 @@ void
 cleanup(void)
 {
 	if (sock_bound)
-		unlink(SOCK_PATH);
+		unlink(ewd_sock_path());
 	for (size_t i = 0; i < outputs.len; i++) {
 		struct output out = outputs.buf[i];
 		if (out.wl_out != NULL)

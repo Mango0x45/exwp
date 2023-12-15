@@ -1,5 +1,5 @@
 bin = ewd
-src = $(wildcard *.c)
+src = $(wildcard *.c) ../common/common.c
 obj = $(src:.c=.o)
 lib = wayland-client
 

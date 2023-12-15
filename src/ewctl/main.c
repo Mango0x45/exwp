@@ -57,7 +57,6 @@ main(int argc, char **argv)
 	struct bs img_e;
 	struct sockaddr_un saddr = {
 		.sun_family = AF_UNIX,
-		.sun_path = SOCK_PATH,
 	};
 	struct option longopts[] = {
 		{"clear",   no_argument,       0, 'c'},
@@ -108,6 +107,7 @@ main(int argc, char **argv)
 		img_d = jxl_decode(img_e);
 	}
 
+	memcpy(saddr.sun_path, ewd_sock_path(), sizeof(saddr.sun_path));
 	if ((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
 		die("socket");
 	if (connect(sockfd, &saddr, sizeof(saddr)) == -1) {
