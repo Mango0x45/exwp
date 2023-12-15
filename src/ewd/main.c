@@ -90,9 +90,8 @@ static struct {
 	size_t len, cap;
 } outputs;
 
-static const zwlr_layer_surface_v1_listener_t ls_listener = {
-	.configure = ls_conf,
-	.closed = ls_close,
+static const wl_buffer_listener_t buf_listener = {
+	.release = buf_free,
 };
 
 static const wl_output_listener_t out_listener = {
@@ -104,17 +103,18 @@ static const wl_output_listener_t out_listener = {
 	.scale = out_scale,
 };
 
-static const wl_shm_listener_t shm_listener = {
-	.format = shm_fmt,
-};
-
 static const wl_registry_listener_t reg_listener = {
 	.global = reg_add,
 	.global_remove = reg_del,
 };
 
-static const wl_buffer_listener_t buf_listener = {
-	.release = buf_free,
+static const wl_shm_listener_t shm_listener = {
+	.format = shm_fmt,
+};
+
+static const zwlr_layer_surface_v1_listener_t ls_listener = {
+	.configure = ls_conf,
+	.closed = ls_close,
 };
 
 int
