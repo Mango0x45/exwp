@@ -52,19 +52,19 @@ struct output {
 };
 
 /* Wayland listener event handlers */
-void buf_free(void *, wl_buffer_t *);
-void ls_close(void *, zwlr_layer_surface_v1_t *);
-void ls_conf(void *, zwlr_layer_surface_v1_t *, u32, u32, u32);
-void out_desc(void *, wl_output_t *, const char *);
-void out_done(void *, wl_output_t *);
-void out_geom(void *, wl_output_t *, i32, i32, i32, i32, i32, const char *,
-              const char *, i32);
-void out_mode(void *, wl_output_t *, u32, i32, i32, i32);
-void out_name(void *, wl_output_t *, const char *);
-void out_scale(void *, wl_output_t *, i32);
-void reg_add(void *, wl_registry_t *, u32, const char *, u32);
-void reg_del(void *, wl_registry_t *, u32);
-void shm_fmt(void *, wl_shm_t *, u32);
+static void buf_free(void *, wl_buffer_t *);
+static void ls_close(void *, zwlr_layer_surface_v1_t *);
+static void ls_conf(void *, zwlr_layer_surface_v1_t *, u32, u32, u32);
+static void out_desc(void *, wl_output_t *, const char *);
+static void out_done(void *, wl_output_t *);
+static void out_geom(void *, wl_output_t *, i32, i32, i32, i32, i32,
+                     const char *, const char *, i32);
+static void out_mode(void *, wl_output_t *, u32, i32, i32, i32);
+static void out_name(void *, wl_output_t *, const char *);
+static void out_scale(void *, wl_output_t *, i32);
+static void reg_add(void *, wl_registry_t *, u32, const char *, u32);
+static void reg_del(void *, wl_registry_t *, u32);
+static void shm_fmt(void *, wl_shm_t *, u32);
 
 /* Normal functions */
 void cleanup(void);
