@@ -19,6 +19,8 @@ endif
 mandir  = $(patsubst .%,$(DPREFIX)/share/man/man%,$(suffix $1))
 mandirs = $(foreach m,$(man),$(call mandir,$m))
 
+obj = $(src:.c=.o)
+
 all: $(bin)
 $(bin): $(obj)
 	$(CC) $(LDFLAGS) $(LDLIBS) -o $@ $^
