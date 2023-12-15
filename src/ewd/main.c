@@ -155,10 +155,7 @@ main(int argc, char **argv)
 			execlp("man", "man", "1", *argv, NULL);
 			die("execlp: man 1 %s", *argv);
 		default:
-			fprintf(stderr,
-			        "Usage: %s [-f]\n"
-			        "       %s -h\n",
-			        *argv, *argv);
+			fprintf(stderr, "Usage: %s [-f | -h]\n", *argv);
 			exit(EXIT_FAILURE);
 		}
 	}
