@@ -340,6 +340,9 @@ surf_create(struct output *out)
 	zwlr_layer_surface_v1_set_anchor(out->layer, anchor);
 	zwlr_layer_surface_v1_add_listener(out->layer, &ls_listener, out);
 
+	out->vp = wp_viewporter_get_viewport(vport, out->surf);
+	wp_viewport_set_destination(out->vp, out->disp.w, out->disp.h);
+
 	out->fs =
 		wp_fractional_scale_manager_v1_get_fractional_scale(fsm, out->surf);
 	wp_fractional_scale_v1_add_listener(out->fs, &frac_listener, out);
@@ -384,10 +387,6 @@ draw(struct output *out, int fd, u32 w, u32 h)
 	if (buf->data == MAP_FAILED)
 		goto err;
 
-	if (out->vp == NULL) {
-		out->vp = wp_viewporter_get_viewport(vport, out->surf);
-		wp_viewport_set_destination(out->vp, out->disp.w, out->disp.h);
-	}
 	wp_viewport_set_source(out->vp, 0, 0, wl_fixed_from_int(out->img.w),
 	                       wl_fixed_from_int(out->img.h));
 	wl_buffer_add_listener(buf->wl_buf, &buf_listener, buf);
