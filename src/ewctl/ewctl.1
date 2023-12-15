@@ -1,4 +1,4 @@
-.Dd December 14 2023
+.Dd December 15 2023
 .Dt EWCTL 1
 .Os
 .Sh NAME
@@ -6,28 +6,92 @@
 .Nd set display wallpaper
 .Sh SYNOPSIS
 .Nm
-.Op Fl c
 .Op Fl d Ar name
 .Op Ar file
 .Nm
-.Fl h
-.\" TODO
+.Fl c | h
+.Sh DESCRIPTION
+The
+.Nm
+utility is a frontend to the
+.Xr ewd 1
+wallpaper daemon.
+It allows you to set and unset wallpapers on one or all displays.
+When invoked, the
+.Nm
+utility will set the wallpaper to image specified by
+.Ar file ,
+which must be a JPEG XL image.
+If
+.Ar file
+is
+.Sq -
+or unspecified, the standard input is read instead.
+.Pp
+To use other image formats you must first convert them from their
+original format to JPEG XL.
+This can be done with tools such as
+.Xr convert 1
+or
+.Xr magick 1
+from the
+.Xr ImageMagick 1
+suite.
+.Nm
+also doesn’t concern itself with image scaling,
+as a result it is highly suggested that if you have a wallpaper at a
+larger resolution than your display,
+that you first scale it down using external tools to reduce memory usage.
 .Pp
 The options are as follows:
 .Bl -tag width Ds
 .It Fl c , Fl Fl clear
+Inform the daemon to stop rendering any wallpapers.
+This option can be combined with
+.Fl d
+to only clear specific displays.
 .It Fl d , Fl Fl display Ns = Ns Ar name
-.\" TODO
+Inform the daemon to only apply changes to the display specified by
+.Ar name .
 .It Fl h , Fl Fl help
-.\" TODO
+Display help information by opening this manual page.
 .El
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
-.\" TODO
+Set
+.Pa foo.jxl
+as the wallpaper for all displays:
+.Pp
+.Dl $ ewctl foo.jxl
+.Pp
+Set
+.Pa foo.jxl
+as the wallpaper for the display eDP-1 and
+.Pa bar.jxl
+as the wallpaper for the display DP-1
+.Pp
+.Dl $ ewctl -d eDP-1 foo.jxl
+.Dl $ ewctl -d DP-1 bar.jxl
+.Pp
+Clear any existing wallpaper from the display eDP-1:
+.Pp
+.Dl $ ewctl -c -d eDP-1
+.Pp
+Convert a PNG image to JPEG XL and scale it down to 1080p before setting
+it as the wallpaper for DP-1:
+.Pp
+.Dl $ magick large.png -resize 1920x1080 JXL:- | ewctl -d DP-1
+.Pp
+Try out a new wallpaper from the internet:
+.Pp
+.Dl $ curl example.com/image.jpg | magick JPG:- JXL:- | ewctl
 .Sh SEE ALSO
 .Xr convert 1 ,
+.Xr curl 1 ,
 .Xr ewd 1 ,
-.Xr ImageMagick 1
+.Xr ImageMagick 1 ,
+.Xr magick 1 ,
+.Xr ewd 7
 .Sh AUTHORS
 .An Thomas Voss Aq Mt mail@thomasvoss.com
