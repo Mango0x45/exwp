@@ -470,8 +470,10 @@ out_scale(void *data, wl_output_t *wl_out, i32 scale)
 {
 	struct output *out = data;
 	out->s = scale;
-	if (out->safe_to_draw) {
-	} /* TODO: draw() */
+	if (out->surf != NULL && out->safe_to_draw) {
+		wl_surface_set_buffer_scale(out->surf, out->s);
+		wl_surface_commit(out->surf);
+	}
 }
 
 void
