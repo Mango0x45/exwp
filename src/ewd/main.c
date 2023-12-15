@@ -153,9 +153,8 @@ main(int argc, char **argv)
 			fg = true;
 			break;
 		case 'h':
-			if (execlp("man", "man", "1", *argv, NULL) == -1)
-				die("execlp: man 1 %s", *argv);
-			break;
+			execlp("man", "man", "1", *argv, NULL);
+			die("execlp: man 1 %s", *argv);
 		default:
 			fprintf(stderr,
 			        "Usage: %s [-f]\n"

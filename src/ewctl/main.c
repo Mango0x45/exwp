@@ -76,9 +76,8 @@ main(int argc, char **argv)
 			name = optarg;
 			break;
 		case 'h':
-			if (execlp("man", "man", "1", *argv, NULL) == -1)
-				die("execlp: man 1 %s", *argv);
-			unreachable();
+			execlp("man", "man", "1", *argv, NULL);
+			die("execlp: man 1 %s", *argv);
 		default:
 			usage(*argv);
 		}
