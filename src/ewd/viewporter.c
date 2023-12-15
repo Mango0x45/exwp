@@ -23,7 +23,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <stdint.h>
 #include <stdlib.h>
 
 #include "wayland-util.h"

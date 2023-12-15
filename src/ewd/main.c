@@ -16,8 +16,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <wayland-client-core.h>
 #include <wayland-client-protocol.h>
-#include <wayland-client.h>
+#include <wayland-util.h>
 
 #include "common.h"
 #include "da.h"

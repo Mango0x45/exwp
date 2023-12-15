@@ -1,13 +1,15 @@
 #ifndef EXWP_COMMON_H
 #define EXWP_COMMON_H
 
+#include <err.h>
+#include <stdint.h>
+#include <stdlib.h>
+
 /* Useful function-like macros */
 #define die(...)    err(EXIT_FAILURE, __VA_ARGS__)
 #define diex(...)   errx(EXIT_FAILURE, __VA_ARGS__)
 #define lengthof(x) (sizeof(x) / sizeof(*(x)))
 #define streq(x, y) (!strcmp(x, y))
-
-#include <stdint.h>
 
 /* Shorter type names */
 typedef int8_t i8;
