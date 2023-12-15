@@ -1,8 +1,8 @@
 bin = ewd
-src = $(wildcard *.c) ../common/common.c
+src = $(shell find . -name '*.c') ../common/common.c
 lib = wayland-client
 
-CFLAGS = -Wno-unused-parameter
+CFLAGS = -Iproto -Wno-unused-parameter
 
 all:
 main.o: da.h types.h
