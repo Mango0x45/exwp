@@ -412,7 +412,6 @@ reg_add(void *data, wl_registry_t *reg, u32 name, const char *iface, u32 ver)
 		assert_ver(4);
 		comp = wl_registry_bind(reg, name, &wl_compositor_interface, 4);
 	} else if (is(wl_shm_interface)) {
-		assert_ver(1);
 		shm = wl_registry_bind(reg, name, &wl_shm_interface, 1);
 		wl_shm_add_listener(shm, &shm_listener, NULL);
 	} else if (is(wl_output_interface)) {
@@ -429,7 +428,6 @@ reg_add(void *data, wl_registry_t *reg, u32 name, const char *iface, u32 ver)
 		assert_ver(2);
 		lshell = wl_registry_bind(reg, name, &zwlr_layer_shell_v1_interface, 2);
 	} else if (is(wp_viewporter_interface)) {
-		assert_ver(1);
 		vport = wl_registry_bind(reg, name, &wp_viewporter_interface, 1);
 	}
 #undef is
