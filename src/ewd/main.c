@@ -357,8 +357,6 @@ clear(struct output *out)
 void
 draw(struct output *out, int fd, u32 w, u32 h)
 {
-	// u32 w = out->w * out->s;
-	// u32 h = out->h * out->s;
 	wl_shm_pool_t *pool;
 	struct buffer *buf = malloc(sizeof(*buf));
 	if (buf == NULL)
