@@ -11,7 +11,8 @@ PREFIX = /usr/local
 DPREFIX = $(DESTDIR)$(PREFIX)
 
 ifeq ($(BUILD),release)
-	CFLAGS += -O3 -march=native -mtune=native
+	CFLAGS += -O3 -march=native -mtune=native -flto
+	LDFLAGS += -flto
 else
 	CFLAGS += -g -ggdb3
 endif
