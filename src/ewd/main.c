@@ -328,6 +328,7 @@ surf_create(struct output *out)
 	wl_region_destroy(input);
 	wl_region_destroy(opaque);
 
+	out->vp = wp_viewporter_get_viewport(vport, out->surf);
 	out->layer = zwlr_layer_shell_v1_get_layer_surface(
 		lshell, out->surf, out->wl_out, ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND,
 		"wallpaper");
@@ -339,9 +340,6 @@ surf_create(struct output *out)
 	zwlr_layer_surface_v1_set_exclusive_zone(out->layer, -1);
 	zwlr_layer_surface_v1_set_anchor(out->layer, anchor);
 	zwlr_layer_surface_v1_add_listener(out->layer, &ls_listener, out);
-
-	out->vp = wp_viewporter_get_viewport(vport, out->surf);
-	wp_viewport_set_destination(out->vp, out->disp.w, out->disp.h);
 
 	out->fs =
 		wp_fractional_scale_manager_v1_get_fractional_scale(fsm, out->surf);
@@ -516,6 +514,7 @@ ls_conf(void *data, zwlr_layer_surface_v1_t *surf, u32 serial, u32 w, u32 h)
 		out->disp.w = w;
 		out->disp.h = h;
 		out->safe_to_draw = true;
+		wp_viewport_set_destination(out->vp, out->disp.w, out->disp.h);
 	}
 }
 
