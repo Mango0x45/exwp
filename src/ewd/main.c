@@ -24,7 +24,6 @@
 #include "da.h"
 #include "types.h"
 
-#include "proto/fractional-scale-v1.h"
 #include "proto/viewporter.h"
 #include "proto/wlr-layer-shell-unstable-v1.h"
 
@@ -39,7 +38,6 @@ struct buffer {
 
 struct output {
 	u32 name;          /* Wayland output name */
-	u32 s;             /* Display scale */
 	bool safe_to_draw; /* Safe to draw new frame? */
 	char *human_name;  /* Human-readable name (e.g. ‘eDP-1’) */
 	struct {
@@ -48,14 +46,12 @@ struct output {
 
 	wl_output_t *wl_out;
 	wl_surface_t *surf;
-	wp_fractional_scale_v1_t *fs;
 	wp_viewport_t *vp;
 	zwlr_layer_surface_v1_t *layer;
 };
 
 /* Wayland listener event handlers */
 static void buf_free(void *, wl_buffer_t *);
-static void frac_scale(void *, wp_fractional_scale_v1_t *, u32);
 static void ls_close(void *, zwlr_layer_surface_v1_t *);
 static void ls_conf(void *, zwlr_layer_surface_v1_t *, u32, u32, u32);
 static void out_desc(void *, wl_output_t *, const char *);
@@ -80,7 +76,6 @@ static wl_compositor_t *comp;
 static wl_display_t *disp;
 static wl_registry_t *reg;
 static wl_shm_t *shm;
-static wp_fractional_scale_manager_v1_t *fsm;
 static wp_viewporter_t *vport;
 static zwlr_layer_shell_v1_t *lshell;
 
@@ -120,10 +115,6 @@ static const wl_registry_listener_t reg_listener = {
 
 static const wl_buffer_listener_t buf_listener = {
 	.release = buf_free,
-};
-
-static const wp_fractional_scale_v1_listener_t frac_listener = {
-	.preferred_scale = frac_scale,
 };
 
 int
@@ -341,10 +332,6 @@ surf_create(struct output *out)
 	zwlr_layer_surface_v1_set_anchor(out->layer, anchor);
 	zwlr_layer_surface_v1_add_listener(out->layer, &ls_listener, out);
 
-	out->fs =
-		wp_fractional_scale_manager_v1_get_fractional_scale(fsm, out->surf);
-	wp_fractional_scale_v1_add_listener(out->fs, &frac_listener, out);
-
 	wl_surface_commit(out->surf);
 }
 
@@ -388,7 +375,6 @@ draw(struct output *out, int fd, u32 w, u32 h)
 	wp_viewport_set_source(out->vp, 0, 0, wl_fixed_from_int(out->img.w),
 	                       wl_fixed_from_int(out->img.h));
 	wl_buffer_add_listener(buf->wl_buf, &buf_listener, buf);
-	wl_surface_set_buffer_scale(out->surf, out->s);
 	wl_surface_attach(out->surf, buf->wl_buf, 0, 0);
 	wl_surface_damage_buffer(out->surf, 0, 0, w, h);
 	wl_surface_commit(out->surf);
@@ -433,12 +419,8 @@ reg_add(void *data, wl_registry_t *reg, u32 name, const char *iface, u32 ver)
 	} else if (is(zwlr_layer_shell_v1_interface)) {
 		assert_ver(2);
 		lshell = wl_registry_bind(reg, name, &zwlr_layer_shell_v1_interface, 2);
-	} else if (is(wp_viewporter_interface)) {
+	} else if (is(wp_viewporter_interface))
 		vport = wl_registry_bind(reg, name, &wp_viewporter_interface, 1);
-	} else if (is(wp_fractional_scale_manager_v1_interface)) {
-		fsm = wl_registry_bind(reg, name,
-		                       &wp_fractional_scale_manager_v1_interface, 1);
-	}
 #undef is
 #undef assert_ver
 }
@@ -476,12 +458,6 @@ out_name(void *data, wl_output_t *wl_out, const char *name)
 void
 out_scale(void *data, wl_output_t *wl_out, i32 scale)
 {
-	struct output *out = data;
-	out->s = scale;
-	if (out->surf != NULL && out->safe_to_draw) {
-		wl_surface_set_buffer_scale(out->surf, out->s);
-		wl_surface_commit(out->surf);
-	}
 }
 
 void
@@ -526,19 +502,9 @@ ls_close(void *data, zwlr_layer_surface_v1_t *surf)
 	/* Don’t trust ‘output’ to be valid, in case compositor destroyed if
 	   before calling closed() */
 	for (size_t i = 0; i < outputs.len; i++) {
-		if (out->name == outputs.buf[i].name) {
+		if (out->name == outputs.buf[i].name)
 			out_layer_free(out);
-			return;
-		}
 	}
-}
-
-void
-frac_scale(void *data, wp_fractional_scale_v1_t *fs, u32 s)
-{
-	struct output *out = data;
-	printf("%s\n", out->human_name);
-	printf("%u\n", s);
 }
 
 /* Unused; all wayland compositors must support XRGB8888 */
@@ -550,10 +516,6 @@ shm_fmt(void *data, wl_shm_t *shm, u32 fmt)
 void
 out_layer_free(struct output *out)
 {
-	if (out->fs != NULL) {
-		wp_fractional_scale_v1_destroy(out->fs);
-		out->fs = NULL;
-	}
 	if (out->vp != NULL) {
 		wp_viewport_destroy(out->vp);
 		out->vp = NULL;
@@ -593,8 +555,6 @@ cleanup(void)
 		free(out.human_name);
 	}
 	free(outputs.buf);
-	if (fsm != NULL)
-		wp_fractional_scale_manager_v1_destroy(fsm);
 	if (vport != NULL)
 		wp_viewporter_destroy(vport);
 	if (lshell != NULL)
