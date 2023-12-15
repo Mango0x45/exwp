@@ -67,12 +67,11 @@ static void reg_del(void *, wl_registry_t *, u32);
 static void shm_fmt(void *, wl_shm_t *, u32);
 
 /* Normal functions */
-void cleanup(void);
-void clear(struct output *);
-void draw(struct output *, int, u32, u32);
-void out_layer_free(struct output *);
-void surf_create(struct output *);
-void *thread_handler(void *);
+static void cleanup(void);
+static void clear(struct output *);
+static void draw(struct output *, int, u32, u32);
+static void out_layer_free(struct output *);
+static void surf_create(struct output *);
 
 static wl_compositor_t *comp;
 static wl_display_t *disp;
