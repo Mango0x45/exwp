@@ -23,8 +23,9 @@
 #include "common.h"
 #include "da.h"
 #include "types.h"
-#include "viewporter.h"
-#include "wlr-layer-shell-unstable-v1.h"
+
+#include "proto/viewporter.h"
+#include "proto/wlr-layer-shell-unstable-v1.h"
 
 #define SOCK_BACKLOG 128
 
