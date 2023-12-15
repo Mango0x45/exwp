@@ -1,0 +1,76 @@
+.Dd December 15 2023
+.Dt EWD 1
+.Os
+.Sh NAME
+.Nm ewd
+.Nd wayland wallpaper daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl f | h
+.Sh DESCRIPTION
+.Nm
+is a daemon responsible for setting and unsetting wallpapers on Wayland.
+When invoked
+.Nm
+will fork itself to become a background process,
+and open a socket at
+.Pa $XDG_RUNTIME_DIR/ewd .
+It can then be properly shutdown by sending it a
+.Dv SIGINT
+or
+.Dv SIGQUIT
+signal.
+.Pp
+Clients can communicate instructions to the
+.Nm
+daemon by sending messages though the socket.
+The format of these messages is described in the
+.Xr ewd 7
+manual.
+Alternatively users may prefer to use the
+.Xr ewctl 1
+client,
+a minimal client implementation shipped with
+.Nm .
+.Pp
+The options are as follows:
+.Bl -tag width Ds
+.It Fl f , Fl Fl foreground
+Run the daemon in the foreground instead of forking off to the
+background.
+.It Fl h , Fl Fl help
+Display help information by opening this manual page.
+.El
+.Sh FILES
+.Bl -tag -width "$XDG_RUNTIME_DIR/ewd" -compact
+.It Pa $XDG_RUNTIME_DIR/ewd
+socket used to communicate with the
+.Nm
+daemon
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Start the
+.Nm
+daemon:
+.Pp
+.Dl $ ewd
+.Pp
+Start the
+.Nm
+daemon in the foreground:
+.Pp
+.Dl $ ewd -f
+.Pp
+Shutdown the
+.Nm
+daemon:
+.Pp
+.Dl $ kill -QUIT $(pidof ewd)
+.Sh SEE ALSO
+.Xr ewctl 1 ,
+.Xr kill 1 ,
+.Xr pidof 1 ,
+.Xr ewd 7
+.Sh AUTHORS
+.An Thomas Voss Aq Mt mail@thomasvoss.com

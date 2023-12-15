@@ -1,6 +1,7 @@
 bin = ewd
 src = $(shell find . -name '*.c') ../common/common.c
 lib = wayland-client
+man = ewd.1
 
 CFLAGS = -Wno-unused-parameter
 
