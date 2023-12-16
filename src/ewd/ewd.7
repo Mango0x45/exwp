@@ -1,0 +1,167 @@
+.Dd December 15 2023
+.Dt EWD 7
+.Os
+.Sh NAME
+.Nm ewd
+.Nd wayland wallpaper daemon protocol
+.Sh DESCRIPTION
+The Wayland Wallpaper Daemon protocol is used to communicate wallpaper
+changes to the
+.Xr ewd 1
+daemon.
+Communication occurs over an
+.Dv AF_UNIX
+socket of type
+.Dv SOCK_STREAM .
+See
+.Sx FILES
+in
+.Xr ewd 1
+for the location of the socket.
+.Pp
+A message over the socket has the following format:
+.Pp
+.TS
+box;
+l
+l | l.
+Message Header
+_
+Type	Contents
+_
+uint32_t	image width (pixels)
+uint32_t	image height (pixels)
+size_t	length of display name (bytes)
+char *	display name
+.TE
+.TS
+box;
+l
+l | l.
+Ancillary Data
+_
+Type	Contents
+_
+int	image file descriptor
+.TE
+.Pp
+The
+.Sq display name
+refers to the specific display for which you would like to set the
+wallpaper.
+If you would like to set a wallpaper for all displays,
+the length should be set to 0 and the name to the empty string.
+The file referred to by the sent file descriptor should be a buffer of
+4-byte pixels in XRGB format.
+If product of the image width and -height results in 0,
+the selected display is cleared.
+.Sh EXAMPLES
+The following program communicates with the
+.Xr ewd 1
+daemon to set the wallpaper of the display eDP-1 to the XRGB buffer
+provided in the first argument.
+A lot of this code is copied from the
+.Xr ewctl 1
+source code,
+that too can be used as a reference.
+.Bd -literal -offset indent
+#include <sys/socket.h>
+#include <sys/un.h>
+
+#include <err.h>
+#include <errno.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define die(...)  err(EXIT_FAILURE, __VA_ARGS__)
+#define diex(...) errx(EXIT_FAILURE, __VA_ARGS__)
+
+#define lengthof(a) (sizeof(a) / sizeof(*(a)))
+
+struct img {
+    int fd;         /* File descriptor */
+    uint32_t w, h;  /* Image width and height */
+};
+
+static char *ewd_sock_path(void);
+static struct img parseimg(const char *);
+
+int
+main(int argc, char **argv)
+{
+    int sockfd;
+    struct img img;
+    struct sockaddr_un saddr = {
+        .sun_family = AF_UNIX,
+    };
+
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s file\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    img = parseimg(argv[1]);
+
+    memcpy(saddr.sun_path, ewd_sock_path(), sizeof(saddr.sun_path));
+    if ((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
+        die("socket");
+    if (connect(sockfd, &saddr, sizeof(saddr)) == -1) {
+        if (errno == ENOENT)
+            diex("ewd daemon is not running");
+        die("connect: %s", saddr.sun_path);
+    }
+    if (sendimg(sockfd, img) == -1)
+        die("sendimg");
+
+    close(sockfd);
+    close(img.fd);
+    return EXIT_SUCCESS;
+}
+
+int
+sendimg(int sockfd, struct img img)
+{
+    size_t len = sizeof("eDP-1") - 1;
+    uint8_t buf[CMSG_SPACE(sizeof(int))];
+    struct iovec iovs[] = {
+        {.iov_base = &img.w,  .iov_len = sizeof(uint32_t)},
+        {.iov_base = &img.h,  .iov_len = sizeof(uint32_t)},
+        {.iov_base = &len,    .iov_len = sizeof(size_t)  },
+        {.iov_base = "eDP-1", .iov_len = len             },
+    };
+    struct msghdr msg = {
+        .msg_iov = iovs,
+        .msg_iovlen = lengthof(iovs),
+        .msg_control = buf,
+        .msg_controllen = sizeof(buf),
+    };
+    struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type = SCM_RIGHTS;
+    cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+    *(int *)CMSG_DATA(cmsg) = img.fd;
+
+    return sendmsg(sockfd, &msg, 0);
+}
+
+char *
+ewd_sock_path(void)
+{
+    /* Implementation omitted. */
+}
+
+struct img
+parseimg(const char *filename)
+{
+    /* Implementation omitted.  You probably want to mmap() the image
+       with MAP_SHARED */
+}
+.Ed
+.Sh SEE ALSO
+.Xr ewctl 1 ,
+.Xr ewd 1 ,
+.Xr unix 7
+.Sh AUTHORS
+.An Thomas Voss Aq Mt mail@thomasvoss.com
