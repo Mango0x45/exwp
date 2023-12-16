@@ -61,8 +61,8 @@ main(int argc, char **argv)
 {
 	char *name = "";
 	int opt, sockfd;
-	struct img img_d;
 	struct bs img_e;
+	struct img img_d;
 	struct sockaddr_un saddr = {
 		.sun_family = AF_UNIX,
 	};
@@ -97,12 +97,7 @@ main(int argc, char **argv)
 		if (argc == 1)
 			warnx("Ignoring file argument ‘%s’", argv[0]);
 
-		img_d = (struct img){
-			.w = 0,
-			.h = 0,
-			.size = 0,
-			.buf = (u8 *){0},
-		};
+		img_d = (struct img){0};
 	} else {
 		if (argc > 1)
 			usage(*argv);
