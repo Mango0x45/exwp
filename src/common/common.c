@@ -27,7 +27,10 @@ ewd_sock_path(void)
 	static char buf[SOCK_PATH_MAX];
 
 	if (!*buf) {
-		dir = getenv("XDG_RUNTIME_DIR");
+		dir = getenv("EWD_SOCK_PATH");
+		if (dir == NULL || *dir == 0)
+			dir = getenv("XDG_RUNTIME_DIR");
+
 		if (dir == NULL)
 			_die(EUNSET);
 		if (*dir == 0)
