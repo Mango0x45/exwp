@@ -7,22 +7,14 @@
 
 #define SOCK_PATH_MAX sizeof(((struct sockaddr_un *)0)->sun_path)
 
-enum {
-	EUNSET,
-	EEMPTY,
-	ELONG,
-};
-
-static const char *errors[] = {
-	[EUNSET] = "$XDG_RUNTIME_DIR is unset",
-	[EEMPTY] = "$XDG_RUNTIME_DIR is empty",
-	[ELONG] = "Pathname $XDG_RUNTIME_DIR/ewd is too long",
-};
+#define EUNSET "$XDG_RUNTIME_DIR is unset"
+#define EEMPTY "$XDG_RUNTIME_DIR is empty"
+#define ELONG  "Pathname $XDG_RUNTIME_DIR/ewd is too long"
 
 const char *
 ewd_sock_path(void)
 {
-#define _die(x) diex("%s", errors[x])
+#define _die(x) diex("%s", x)
 	char *dir;
 	static char buf[SOCK_PATH_MAX];
 
