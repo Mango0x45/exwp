@@ -7,7 +7,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,7 +45,7 @@ static u8 *process(const char *, int, size_t *);
 static int rv;
 static bool cflag;
 
-static void
+[[noreturn]] static void
 usage(const char *argv0)
 {
 	fprintf(stderr,
@@ -182,12 +181,11 @@ jxl_decode(struct bs img)
 		.num_channels = sizeof(xrgb),
 	};
 
-	if ((d = JxlDecoderCreate(NULL)) == NULL)
+	if (!(d = JxlDecoderCreate(NULL)))
 		diex("Failed to allocate JXL decoder");
 
 	nthrds = JxlThreadParallelRunnerDefaultNumWorkerThreads();
-	tpr = JxlThreadParallelRunnerCreate(NULL, nthrds);
-	if (tpr == NULL)
+	if (!(tpr = JxlThreadParallelRunnerCreate(NULL, nthrds)))
 		diex("Failed to allocate parallel runner");
 
 	if (JxlDecoderSetParallelRunner(d, JxlThreadParallelRunner, tpr))

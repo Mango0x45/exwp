@@ -10,7 +10,6 @@
 #include <inttypes.h>
 #include <poll.h>
 #include <signal.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -166,19 +165,19 @@ main(int argc, char **argv)
 	/* Connect to the Wayland display and register all the global objects.  The
 	   first roundtrip doesn’t register any current outputs, so we need to
 	   roundtrip twice. */
-	if ((disp = wl_display_connect(NULL)) == NULL)
+	if (!(disp = wl_display_connect(NULL)))
 		diex("Failed to connect to wayland display");
-	if ((reg = wl_display_get_registry(disp)) == NULL)
+	if (!(reg = wl_display_get_registry(disp)))
 		diex("Failed to obtain registry handle");
 
 	wl_registry_add_listener(reg, &reg_listener, NULL);
 	wl_display_roundtrip(disp);
 
-	if (comp == NULL)
+	if (!comp)
 		diex("Failed to obtain compositor handle");
-	if (shm == NULL)
+	if (!shm)
 		diex("Failed to obtain shm handle");
-	if (lshell == NULL)
+	if (!lshell)
 		diex("Failed to obtain layer_shell handle");
 
 	wl_display_roundtrip(disp);
@@ -266,7 +265,7 @@ main(int argc, char **argv)
 			if (nlen) {
 				struct iovec iov = {.iov_len = nlen};
 
-				if ((name = malloc(nlen + 1)) == NULL) {
+				if (!(name = malloc(nlen + 1))) {
 					warn("malloc");
 					goto err;
 				}
@@ -278,12 +277,12 @@ main(int argc, char **argv)
 				name[nlen] = 0;
 			}
 
-			for (size_t i = 0; i < outputs.len; i++) {
-				if (name == NULL || streq(outputs.buf[i].human_name, name)) {
+			da_foreach (&outputs, out) {
+				if (!name || streq(out->human_name, name)) {
 					if (w * h == 0)
-						clear(&outputs.buf[i]);
+						clear(out);
 					else
-						draw(&outputs.buf[i], mfd, w, h);
+						draw(out, mfd, w, h);
 				}
 			}
 
@@ -309,7 +308,7 @@ surf_create(struct output *out)
 	u32 anchor;
 	wl_region_t *input, *opaque;
 
-	if (comp == NULL || lshell == NULL || out->surf != NULL)
+	if (!comp || !lshell || !out->surf)
 		return;
 
 	out->surf = wl_compositor_create_surface(comp);
@@ -348,21 +347,21 @@ void
 draw(struct output *out, int fd, u32 w, u32 h)
 {
 	wl_shm_pool_t *pool;
-	struct buffer *buf = malloc(sizeof(*buf));
-	if (buf == NULL)
+	struct buffer *buf;
+	if (!(buf = malloc(sizeof(*buf))))
 		die("malloc");
 
 	out->img.w = w;
 	out->img.h = h;
 	buf->size = w * h * sizeof(xrgb);
-	if ((pool = wl_shm_create_pool(shm, fd, buf->size)) == NULL) {
+	if (!(pool = wl_shm_create_pool(shm, fd, buf->size))) {
 		warnx("failed to create shm pool");
 		goto err;
 	}
 
 	buf->wl_buf = wl_shm_pool_create_buffer(pool, 0, w, h, w * sizeof(xrgb),
 	                                        WL_SHM_FORMAT_XRGB8888);
-	if (buf->wl_buf == NULL) {
+	if (!buf->wl_buf) {
 		warnx("failed to create shm pool buffer");
 		goto err;
 	}
@@ -383,11 +382,11 @@ draw(struct output *out, int fd, u32 w, u32 h)
 	return;
 
 err:
-	if (buf->wl_buf != NULL)
+	if (buf->wl_buf)
 		wl_buffer_destroy(buf->wl_buf);
-	if (pool != NULL)
+	if (pool)
 		wl_shm_pool_destroy(pool);
-	if (buf->data != NULL)
+	if (buf->data)
 		munmap(buf->data, buf->size);
 }
 
@@ -430,14 +429,13 @@ reg_add(void *data, wl_registry_t *reg, u32 name, const char *iface, u32 ver)
 void
 reg_del(void *data, wl_registry_t *reg, u32 name)
 {
-	for (size_t i = 0; i < outputs.len; i++) {
-		struct output *out = outputs.buf + i;
+	da_foreach (&outputs, out) {
 		if (out->name == name) {
 			out_layer_free(out);
-			if (out->wl_out != NULL)
+			if (out->wl_out)
 				wl_output_release(out->wl_out);
 			free(out->human_name);
-			da_remove(&outputs, i);
+			da_remove(&outputs, out - outputs.buf);
 			return;
 		}
 	}
@@ -453,7 +451,7 @@ out_mode(void *data, wl_output_t *out, u32 flags, i32 w, i32 h, i32 fps)
 void
 out_name(void *data, wl_output_t *wl_out, const char *name)
 {
-	if ((((struct output *)data)->human_name = strdup(name)) == NULL)
+	if (!(((struct output *)data)->human_name = strdup(name)))
 		warn("strdup: %s", name);
 }
 
@@ -503,8 +501,8 @@ ls_close(void *data, zwlr_layer_surface_v1_t *surf)
 
 	/* Don’t trust ‘output’ to be valid, in case compositor destroyed if
 	   before calling closed() */
-	for (size_t i = 0; i < outputs.len; i++) {
-		if (out->name == outputs.buf[i].name) {
+	da_foreach (&outputs, p) {
+		if (out->name == p->name) {
 			out_layer_free(out);
 			return;
 		}
@@ -520,15 +518,15 @@ shm_fmt(void *data, wl_shm_t *shm, u32 fmt)
 void
 out_layer_free(struct output *out)
 {
-	if (out->vp != NULL) {
+	if (out->vp) {
 		wp_viewport_destroy(out->vp);
 		out->vp = NULL;
 	}
-	if (out->layer != NULL) {
+	if (out->layer) {
 		zwlr_layer_surface_v1_destroy(out->layer);
 		out->layer = NULL;
 	}
-	if (out->surf != NULL) {
+	if (out->surf) {
 		wl_surface_destroy(out->surf);
 		out->surf = NULL;
 	}
@@ -551,24 +549,23 @@ cleanup(void)
 {
 	if (sock_bound)
 		unlink(ewd_sock_path());
-	for (size_t i = 0; i < outputs.len; i++) {
-		struct output out = outputs.buf[i];
-		if (out.wl_out != NULL)
-			wl_output_release(out.wl_out);
-		out_layer_free(&out);
-		free(out.human_name);
+	da_foreach (&outputs, out) {
+		if (out->wl_out)
+			wl_output_release(out->wl_out);
+		out_layer_free(out);
+		free(out->human_name);
 	}
 	free(outputs.buf);
-	if (vport != NULL)
+	if (vport)
 		wp_viewporter_destroy(vport);
-	if (lshell != NULL)
+	if (lshell)
 		zwlr_layer_shell_v1_destroy(lshell);
-	if (shm != NULL)
+	if (shm)
 		wl_shm_destroy(shm);
-	if (comp != NULL)
+	if (comp)
 		wl_compositor_destroy(comp);
-	if (reg != NULL)
+	if (reg)
 		wl_registry_destroy(reg);
-	if (disp != NULL)
+	if (disp)
 		wl_display_disconnect(disp);
 }
