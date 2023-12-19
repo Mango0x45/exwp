@@ -260,7 +260,7 @@ main(int argc, char **argv)
 			}
 
 			cmsg = CMSG_FIRSTHDR(&msg);
-			mfd = *(int *)CMSG_DATA(cmsg);
+			memcpy(&mfd, CMSG_DATA(cmsg), sizeof(mfd));
 
 			if (nlen) {
 				struct iovec iov = {.iov_len = nlen};

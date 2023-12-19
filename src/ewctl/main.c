@@ -149,7 +149,7 @@ srv_msg(int sockfd, struct img mmf, char *name)
 	cmsg->cmsg_level = SOL_SOCKET;
 	cmsg->cmsg_type = SCM_RIGHTS;
 	cmsg->cmsg_len = CMSG_LEN(sizeof(int));
-	*(int *)CMSG_DATA(cmsg) = mmf.fd;
+	memcpy(CMSG_DATA(cmsg), &mmf.fd, sizeof(mmf.fd));
 
 	if (sendmsg(sockfd, &msg, 0) == -1)
 		die("sendmsg");
