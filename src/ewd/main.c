@@ -67,7 +67,7 @@ static void shm_fmt(void *, wl_shm_t *, u32);
 /* Normal functions */
 static void cleanup(void);
 static void clear(struct output *);
-static void draw(struct output *, int, u32, u32);
+static void draw(struct output *, int);
 static void out_layer_free(struct output *);
 static void surf_create(struct output *);
 
@@ -281,8 +281,11 @@ main(int argc, char **argv)
 				if (!name || streq(out->human_name, name)) {
 					if (w * h == 0)
 						clear(out);
-					else
-						draw(out, mfd, w, h);
+					else {
+						out->img.w = w;
+						out->img.h = h;
+						draw(out, mfd);
+					}
 				}
 			}
 
@@ -344,15 +347,16 @@ clear(struct output *out)
 }
 
 void
-draw(struct output *out, int fd, u32 w, u32 h)
+draw(struct output *out, int fd)
 {
+	u32 w, h;
 	wl_shm_pool_t *pool;
 	struct buffer *buf;
 	if (!(buf = malloc(sizeof(*buf))))
 		die("malloc");
 
-	out->img.w = w;
-	out->img.h = h;
+	w = out->img.w;
+	h = out->img.h;
 	buf->size = w * h * sizeof(xrgb);
 	if (!(pool = wl_shm_create_pool(shm, fd, buf->size))) {
 		warnx("failed to create shm pool");
