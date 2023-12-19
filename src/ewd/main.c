@@ -311,7 +311,7 @@ surf_create(struct output *out)
 	u32 anchor;
 	wl_region_t *input, *opaque;
 
-	if (!comp || !lshell || !out->surf)
+	if (!comp || !lshell)
 		return;
 
 	out->surf = wl_compositor_create_surface(comp);
