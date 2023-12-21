@@ -102,6 +102,6 @@
 	} while (0)
 
 #define da_foreach(a, p) \
-	for (auto p = (a)->buf; p - (a)->buf < (ptrdiff_t)(a)->len; p++)
+	for (typeof((a)->buf) p = (a)->buf; p - (a)->buf < (ptrdiff_t)(a)->len; p++)
 
 #endif /* !MANGO_DA_H */
