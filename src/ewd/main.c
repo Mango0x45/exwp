@@ -27,21 +27,22 @@
 
 #define SOCK_BACKLOG 128
 
-struct buffer {
-	u8 *data;    /* Raw pixel data */
-	size_t size; /* Size of .data */
-
-	wl_buffer_t *wl_buf;
-};
-
 struct output {
 	u32 name;          /* Wayland output name */
 	bool safe_to_draw; /* Safe to draw new frame? */
 	char *human_name;  /* Human-readable name (e.g. ‘eDP-1’) */
+
+	/* Display- and image dimensions */
 	struct {
 		u32 w, h;
-	} disp, img; /* Display- and image dimensions */
+	} disp, img;
 
+	struct {
+		u8 *p;
+		size_t size;
+	} buf;
+
+	wl_buffer_t *wl_buf;
 	wl_output_t *wl_out;
 	wl_surface_t *surf;
 	zwlr_layer_surface_v1_t *layer;
@@ -343,43 +344,42 @@ draw(struct output *out, int fd)
 {
 	u32 w, h;
 	wl_shm_pool_t *pool;
-	struct buffer *buf = xmalloc(sizeof(*buf));
 
 	w = out->img.w;
 	h = out->img.h;
-	buf->size = w * h * sizeof(xrgb);
-	if (!(pool = wl_shm_create_pool(shm, fd, buf->size))) {
+	out->buf.size = w * h * sizeof(xrgb);
+	if (!(pool = wl_shm_create_pool(shm, fd, out->buf.size))) {
 		warnx("failed to create shm pool");
 		goto err;
 	}
 
-	buf->wl_buf = wl_shm_pool_create_buffer(pool, 0, w, h, w * sizeof(xrgb),
+	out->wl_buf = wl_shm_pool_create_buffer(pool, 0, w, h, w * sizeof(xrgb),
 	                                        WL_SHM_FORMAT_XRGB8888);
-	if (!buf->wl_buf) {
+	if (!out->wl_buf) {
 		warnx("failed to create shm pool buffer");
 		goto err;
 	}
 
 	wl_shm_pool_destroy(pool);
 
-	buf->data =
-		mmap(NULL, buf->size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	if (buf->data == MAP_FAILED)
+	out->buf.p =
+		mmap(NULL, out->buf.size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if (out->buf.p == MAP_FAILED)
 		goto err;
 
-	wl_buffer_add_listener(buf->wl_buf, &buf_listener, buf);
-	wl_surface_attach(out->surf, buf->wl_buf, 0, 0);
+	wl_buffer_add_listener(out->wl_buf, &buf_listener, out);
+	wl_surface_attach(out->surf, out->wl_buf, 0, 0);
 	wl_surface_damage_buffer(out->surf, 0, 0, w, h);
 	wl_surface_commit(out->surf);
 	return;
 
 err:
-	if (buf->wl_buf)
-		wl_buffer_destroy(buf->wl_buf);
+	if (out->wl_buf)
+		wl_buffer_destroy(out->wl_buf);
 	if (pool)
 		wl_shm_pool_destroy(pool);
-	if (buf->data)
-		munmap(buf->data, buf->size);
+	if (out->buf.p)
+		munmap(out->buf.p, out->buf.size);
 }
 
 void
@@ -524,10 +524,9 @@ out_layer_free(struct output *out)
 void
 buf_free(void *data, wl_buffer_t *wl_buf)
 {
-	struct buffer *buf = data;
-	wl_buffer_destroy(buf->wl_buf);
-	munmap(buf->data, buf->size);
-	free(buf);
+	struct output *out = data;
+	wl_buffer_destroy(out->wl_buf);
+	munmap(out->buf.p, out->buf.size);
 }
 
 void
