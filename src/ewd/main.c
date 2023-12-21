@@ -23,7 +23,6 @@
 #include "da.h"
 #include "types.h"
 
-#include "proto/viewporter.h"
 #include "proto/wlr-layer-shell-unstable-v1.h"
 
 #define SOCK_BACKLOG 128
@@ -45,7 +44,6 @@ struct output {
 
 	wl_output_t *wl_out;
 	wl_surface_t *surf;
-	wp_viewport_t *vp;
 	zwlr_layer_surface_v1_t *layer;
 };
 
@@ -75,7 +73,6 @@ static wl_compositor_t *comp;
 static wl_display_t *disp;
 static wl_registry_t *reg;
 static wl_shm_t *shm;
-static wp_viewporter_t *vport;
 static zwlr_layer_shell_v1_t *lshell;
 
 /* We use this to check in the cleanup routine whether or not we need to unlink
@@ -319,7 +316,6 @@ surf_create(struct output *out)
 	wl_region_destroy(input);
 	wl_region_destroy(opaque);
 
-	out->vp = wp_viewporter_get_viewport(vport, out->surf);
 	out->layer = zwlr_layer_shell_v1_get_layer_surface(
 		lshell, out->surf, out->wl_out, ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND,
 		"wallpaper");
@@ -371,8 +367,6 @@ draw(struct output *out, int fd)
 	if (buf->data == MAP_FAILED)
 		goto err;
 
-	wp_viewport_set_source(out->vp, 0, 0, wl_fixed_from_int(out->img.w),
-	                       wl_fixed_from_int(out->img.h));
 	wl_buffer_add_listener(buf->wl_buf, &buf_listener, buf);
 	wl_surface_attach(out->surf, buf->wl_buf, 0, 0);
 	wl_surface_damage_buffer(out->surf, 0, 0, w, h);
@@ -418,8 +412,7 @@ reg_add(void *data, wl_registry_t *reg, u32 name, const char *iface, u32 ver)
 	} else if (is(zwlr_layer_shell_v1_interface)) {
 		assert_ver(2);
 		lshell = wl_registry_bind(reg, name, &zwlr_layer_shell_v1_interface, 2);
-	} else if (is(wp_viewporter_interface))
-		vport = wl_registry_bind(reg, name, &wp_viewporter_interface, 1);
+	}
 #undef is
 #undef assert_ver
 }
@@ -488,7 +481,6 @@ ls_conf(void *data, zwlr_layer_surface_v1_t *surf, u32 serial, u32 w, u32 h)
 		out->disp.w = w;
 		out->disp.h = h;
 		out->safe_to_draw = true;
-		wp_viewport_set_destination(out->vp, out->disp.w, out->disp.h);
 	}
 }
 
@@ -516,10 +508,6 @@ shm_fmt(void *data, wl_shm_t *shm, u32 fmt)
 void
 out_layer_free(struct output *out)
 {
-	if (out->vp) {
-		wp_viewport_destroy(out->vp);
-		out->vp = NULL;
-	}
 	if (out->layer) {
 		zwlr_layer_surface_v1_destroy(out->layer);
 		out->layer = NULL;
@@ -554,8 +542,6 @@ cleanup(void)
 		free(out->human_name);
 	}
 	free(outputs.buf);
-	if (vport)
-		wp_viewporter_destroy(vport);
 	if (lshell)
 		zwlr_layer_shell_v1_destroy(lshell);
 	if (shm)
