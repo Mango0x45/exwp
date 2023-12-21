@@ -243,31 +243,29 @@ u8 *
 process(const char *name, int fd, size_t *size)
 {
 	u8 *buf = NULL;
+	size_t len = 0;
 	struct stat sb;
 
 	if (fstat(fd, &sb) == -1)
 		die("fstat: %s", name);
 
-	if (S_ISREG(sb.st_mode)) {
-		*size = sb.st_size;
-		buf = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-		if (buf == MAP_FAILED)
-			die("mmap: %s", name);
-	} else {
-		size_t len, cap;
+	for (;;) {
+		/* This could *potentially* cause issues on some wack system where
+		   sb.st_blksize is absolutely massive and the stack size is tiny.
+		   Until I see such a system though, I do not care; the VLA will
+		   suffice. */
+		u8 tmp[sb.st_blksize];
 		ssize_t nr;
-		len = cap = 0;
 
-		/* Not the best; but good enough for now */
-		do {
-			cap += sb.st_blksize;
-			if ((buf = realloc(buf, cap)) == NULL)
-				die("realloc");
-			len += nr = read(fd, buf + len, sb.st_blksize);
-		} while (nr > 0);
-		if (nr == -1)
+		if ((nr = read(fd, tmp, sb.st_blksize)) == -1)
 			die("read: %s", name);
-		*size = len;
+		if (!nr)
+			break;
+		buf = xrealloc(buf, len + nr);
+		memcpy(buf + len, tmp, nr);
+		len += nr;
 	}
+
+	*size = len;
 	return buf;
 }
