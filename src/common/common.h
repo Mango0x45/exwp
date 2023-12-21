@@ -24,6 +24,9 @@ typedef uint64_t u64;
 /* Nice when used with sizeof() */
 typedef u32 xrgb;
 
+void *xmalloc(size_t);
+void *xrealloc(void *, size_t);
+
 /* Get path to the ewd socket */
 const char *ewd_sock_path(void);
 

@@ -11,6 +11,23 @@
 #define EEMPTY "$XDG_RUNTIME_DIR is empty"
 #define ELONG  "Pathname $XDG_RUNTIME_DIR/ewd is too long"
 
+void *
+xmalloc(size_t n)
+{
+	void *p = malloc(n);
+	if (!p)
+		die("malloc");
+	return p;
+}
+
+void *
+xrealloc(void *p, size_t n)
+{
+	if (!(p = realloc(p, n)))
+		die("realloc");
+	return p;
+}
+
 const char *
 ewd_sock_path(void)
 {

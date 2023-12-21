@@ -265,11 +265,7 @@ main(int argc, char **argv)
 			if (nlen) {
 				struct iovec iov = {.iov_len = nlen};
 
-				if (!(name = malloc(nlen + 1))) {
-					warn("malloc");
-					goto err;
-				}
-				iov.iov_base = name;
+				iov.iov_base = name = xmalloc(nlen + 1);
 				if (readv(cfd, &iov, 1) == -1) {
 					warn("readv");
 					goto err;
@@ -351,9 +347,7 @@ draw(struct output *out, int fd)
 {
 	u32 w, h;
 	wl_shm_pool_t *pool;
-	struct buffer *buf;
-	if (!(buf = malloc(sizeof(*buf))))
-		die("malloc");
+	struct buffer *buf = xmalloc(sizeof(*buf));
 
 	w = out->img.w;
 	h = out->img.h;
