@@ -31,5 +31,6 @@ sudo make install
 
 Building will require that you have a compiler that supports the most
 basic of C23 features.  C23 is still very young and not well supported,
-but GCC is capable of building everything.  The Ewctl utility also has a
-dependency on libjxl for handling JPEG XL files.
+but GCC is capable of building everything.  The Ewctl has a dependency on
+libjxl for handling JPEG XL files and Ewd has a dependency on pixman for
+image scaling.

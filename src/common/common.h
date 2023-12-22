@@ -24,6 +24,7 @@ typedef uint64_t u64;
 /* Nice when used with sizeof() */
 typedef u32 xrgb;
 
+void *xcalloc(size_t, size_t);
 void *xmalloc(size_t);
 void *xrealloc(void *, size_t);
 

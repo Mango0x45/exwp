@@ -12,6 +12,15 @@
 #define ELONG  "Pathname $XDG_RUNTIME_DIR/ewd is too long"
 
 void *
+xcalloc(size_t n, size_t m)
+{
+	void *p = calloc(n, m);
+	if (!p)
+		die("calloc");
+	return p;
+}
+
+void *
 xmalloc(size_t n)
 {
 	void *p = malloc(n);

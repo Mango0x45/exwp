@@ -21,6 +21,7 @@
 
 #include "common.h"
 #include "da.h"
+#include "scale.h"
 #include "types.h"
 
 #include "proto/wlr-layer-shell-unstable-v1.h"
@@ -66,7 +67,8 @@ static void shm_fmt(void *, wl_shm_t *, u32);
 /* Normal functions */
 static void cleanup(void);
 static void clear(struct output *);
-static void draw(struct output *, int);
+static void draw(struct output *);
+static bool mkbuf(struct output *, u8 *, u32, u32);
 static void out_layer_free(struct output *);
 static void surf_create(struct output *);
 
@@ -233,7 +235,7 @@ main(int argc, char **argv)
 			char *name = NULL;
 			size_t nlen;
 			u32 w, h;
-			u8 fdbuf[CMSG_SPACE(sizeof(int))];
+			u8 *src, fdbuf[CMSG_SPACE(sizeof(int))];
 			struct iovec iovs[] = {
 				{.iov_base = &w,    .iov_len = sizeof(w)   },
 				{.iov_base = &h,    .iov_len = sizeof(h)   },
@@ -247,6 +249,7 @@ main(int argc, char **argv)
 			};
 			struct cmsghdr *cmsg;
 
+			src = MAP_FAILED;
 			cfd = mfd = -1;
 			if ((cfd = accept(FD(SOCK), NULL, NULL)) == -1) {
 				warn("accept");
@@ -271,6 +274,14 @@ main(int argc, char **argv)
 				name[nlen] = 0;
 			}
 
+			if ((src = mmap(NULL, w * h * sizeof(xrgb), PROT_READ, MAP_PRIVATE,
+			                mfd, 0))
+			    == MAP_FAILED)
+			{
+				warn("mmap");
+				goto err;
+			}
+
 			da_foreach (&outputs, out) {
 				if (!name || streq(out->human_name, name)) {
 					if (w * h == 0)
@@ -278,7 +289,9 @@ main(int argc, char **argv)
 					else {
 						out->img.w = w;
 						out->img.h = h;
-						draw(out, mfd);
+						if (!mkbuf(out, src, w, h))
+							goto err;
+						draw(out);
 					}
 				}
 			}
@@ -289,6 +302,8 @@ err:
 				close(mfd);
 			if (cfd != -1)
 				close(cfd);
+			if (src != MAP_FAILED)
+				munmap(src, w * h * sizeof(xrgb));
 		}
 #undef EVENT
 	}
@@ -339,47 +354,57 @@ clear(struct output *out)
 	surf_create(out);
 }
 
-void
-draw(struct output *out, int fd)
+bool
+mkbuf(struct output *out, u8 *src, u32 w, u32 h)
 {
-	u32 w, h;
+#define __out(f, ...) \
+	do { \
+		f(__VA_ARGS__); \
+		return false; \
+	} while (0)
+#define warn_out(...)  __out(warn, __VA_ARGS__)
+#define warnx_out(...) __out(warnx, __VA_ARGS__)
+
+	int mfd;
 	wl_shm_pool_t *pool;
 
-	w = out->img.w;
-	h = out->img.h;
-	out->buf.size = w * h * sizeof(xrgb);
-	if (!(pool = wl_shm_create_pool(shm, fd, out->buf.size))) {
-		warnx("failed to create shm pool");
-		goto err;
+	out->buf.size = out->disp.w * out->disp.h * sizeof(xrgb);
+
+	if ((mfd = memfd_create("ewd-shm", 0)) == -1)
+		warn_out("memfd_create");
+	if (ftruncate(mfd, out->buf.size) == -1)
+		warn_out("ftruncate");
+	if ((out->buf.p = mmap(NULL, out->buf.size, PROT_READ | PROT_WRITE,
+	                       MAP_SHARED, mfd, 0))
+	    == MAP_FAILED)
+	{
+		warn_out("mmap");
 	}
 
-	out->wl_buf = wl_shm_pool_create_buffer(pool, 0, w, h, w * sizeof(xrgb),
-	                                        WL_SHM_FORMAT_XRGB8888);
-	if (!out->wl_buf) {
-		warnx("failed to create shm pool buffer");
-		goto err;
+	if (!(pool = wl_shm_create_pool(shm, mfd, out->buf.size)))
+		warnx_out("Failed to create shm pool");
+	if (!(out->wl_buf = wl_shm_pool_create_buffer(
+			  pool, 0, out->disp.w, out->disp.h, out->disp.w * sizeof(xrgb),
+			  WL_SHM_FORMAT_XRGB8888)))
+	{
+		warnx_out("Failed to create shm pool buffer");
 	}
-
 	wl_shm_pool_destroy(pool);
 
-	out->buf.p =
-		mmap(NULL, out->buf.size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	if (out->buf.p == MAP_FAILED)
-		goto err;
+	scale(out->buf.p, out->disp.w, out->disp.h, src, w, h);
+	return true;
+#undef warnx_out
+#undef warn_out
+#undef __out
+}
 
+void
+draw(struct output *out)
+{
 	wl_buffer_add_listener(out->wl_buf, &buf_listener, out);
 	wl_surface_attach(out->surf, out->wl_buf, 0, 0);
-	wl_surface_damage_buffer(out->surf, 0, 0, w, h);
+	wl_surface_damage_buffer(out->surf, 0, 0, out->disp.w, out->disp.h);
 	wl_surface_commit(out->surf);
-	return;
-
-err:
-	if (out->wl_buf)
-		wl_buffer_destroy(out->wl_buf);
-	if (pool)
-		wl_shm_pool_destroy(pool);
-	if (out->buf.p)
-		munmap(out->buf.p, out->buf.size);
 }
 
 void
