@@ -357,45 +357,46 @@ clear(struct output *out)
 bool
 mkbuf(struct output *out, u8 *src, u32 w, u32 h)
 {
-#define __out(f, ...) \
-	do { \
-		f(__VA_ARGS__); \
-		return false; \
-	} while (0)
-#define warn_out(...)  __out(warn, __VA_ARGS__)
-#define warnx_out(...) __out(warnx, __VA_ARGS__)
-
-	int mfd;
+	int mfd = -1;
+	bool rv = false;
 	wl_shm_pool_t *pool;
 
 	out->buf.size = out->disp.w * out->disp.h * sizeof(xrgb);
 
-	if ((mfd = memfd_create("ewd-shm", 0)) == -1)
-		warn_out("memfd_create");
-	if (ftruncate(mfd, out->buf.size) == -1)
-		warn_out("ftruncate");
+	if ((mfd = memfd_create("ewd-shm", 0)) == -1) {
+		warn("memfd_create");
+		goto err;
+	}
+	if (ftruncate(mfd, out->buf.size) == -1) {
+		warn("ftruncate");
+		goto err;
+	}
 	if ((out->buf.p = mmap(NULL, out->buf.size, PROT_READ | PROT_WRITE,
 	                       MAP_SHARED, mfd, 0))
 	    == MAP_FAILED)
 	{
-		warn_out("mmap");
+		warn("mmap");
+		goto err;
 	}
 
-	if (!(pool = wl_shm_create_pool(shm, mfd, out->buf.size)))
-		warnx_out("Failed to create shm pool");
+	if (!(pool = wl_shm_create_pool(shm, mfd, out->buf.size))) {
+		warnx("Failed to create shm pool");
+		goto err;
+	}
 	if (!(out->wl_buf = wl_shm_pool_create_buffer(
 			  pool, 0, out->disp.w, out->disp.h, out->disp.w * sizeof(xrgb),
 			  WL_SHM_FORMAT_XRGB8888)))
 	{
-		warnx_out("Failed to create shm pool buffer");
+		warnx("Failed to create shm pool buffer");
+		goto err;
 	}
 	wl_shm_pool_destroy(pool);
 
 	scale(out->buf.p, out->disp.w, out->disp.h, src, w, h);
-	return true;
-#undef warnx_out
-#undef warn_out
-#undef __out
+	rv = true;
+err:
+	close(mfd);
+	return rv;
 }
 
 void
