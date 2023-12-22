@@ -21,7 +21,7 @@ scale(u8 *restrict dst, u32 dw, u32 dh, const u8 *restrict src, u32 sw, u32 sh)
 	pixman_f_transform_init_scale(&ftfrm, s, s);
 	pixman_transform_from_pixman_f_transform(&tfrm, &ftfrm);
 	pixman_image_set_transform(simg, &tfrm);
-	dimg = pixman_image_create_bits(PIXMAN_a8r8g8b8, dw, dh, (u32 *)dst,
+	dimg = pixman_image_create_bits(PIXMAN_x8r8g8b8, dw, dh, (u32 *)dst,
 	                                dw * sizeof(xrgb));
 	pixman_image_composite(PIXMAN_OP_OVER, simg, NULL, dimg, s, s, 0, 0, 0, 0,
 	                       dw, dh);
