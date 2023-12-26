@@ -34,9 +34,8 @@ struct output {
 	char *human_name;  /* Human-readable name (e.g. ‘eDP-1’) */
 
 	/* Display- and image dimensions */
-	struct {
-		u32 w, h;
-	} disp, img;
+	u32 iw, ih;
+	u32 dw, dh;
 
 	struct {
 		u8 *p;
@@ -287,8 +286,8 @@ main(int argc, char **argv)
 					if (w * h == 0)
 						clear(out);
 					else {
-						out->img.w = w;
-						out->img.h = h;
+						out->iw = w;
+						out->ih = h;
 						if (!mkbuf(out, src, w, h))
 							goto err;
 						draw(out);
@@ -361,7 +360,7 @@ mkbuf(struct output *out, u8 *src, u32 w, u32 h)
 	bool rv = false;
 	wl_shm_pool_t *pool;
 
-	out->buf.size = out->disp.w * out->disp.h * sizeof(xrgb);
+	out->buf.size = out->dw * out->dh * sizeof(xrgb);
 
 	if ((mfd = memfd_create("ewd-shm", 0)) == -1) {
 		warn("memfd_create");
@@ -383,16 +382,16 @@ mkbuf(struct output *out, u8 *src, u32 w, u32 h)
 		warnx("Failed to create shm pool");
 		goto err;
 	}
-	if (!(out->wl_buf = wl_shm_pool_create_buffer(
-			  pool, 0, out->disp.w, out->disp.h, out->disp.w * sizeof(xrgb),
-			  WL_SHM_FORMAT_XRGB8888)))
+	if (!(out->wl_buf = wl_shm_pool_create_buffer(pool, 0, out->dw, out->dh,
+	                                              out->dw * sizeof(xrgb),
+	                                              WL_SHM_FORMAT_XRGB8888)))
 	{
 		warnx("Failed to create shm pool buffer");
 		goto err;
 	}
 	wl_shm_pool_destroy(pool);
 
-	scale(out->buf.p, out->disp.w, out->disp.h, src, w, h);
+	scale(out->buf.p, out->dw, out->dh, src, w, h);
 	rv = true;
 err:
 	close(mfd);
@@ -404,7 +403,7 @@ draw(struct output *out)
 {
 	wl_buffer_add_listener(out->wl_buf, &buf_listener, out);
 	wl_surface_attach(out->surf, out->wl_buf, 0, 0);
-	wl_surface_damage_buffer(out->surf, 0, 0, out->disp.w, out->disp.h);
+	wl_surface_damage_buffer(out->surf, 0, 0, out->dw, out->dh);
 	wl_surface_commit(out->surf);
 }
 
@@ -461,8 +460,8 @@ reg_del(void *data, wl_registry_t *reg, u32 name)
 void
 out_mode(void *data, wl_output_t *out, u32 flags, i32 w, i32 h, i32 fps)
 {
-	((struct output *)data)->disp.w = w;
-	((struct output *)data)->disp.h = h;
+	((struct output *)data)->dw = w;
+	((struct output *)data)->dh = h;
 }
 
 void
@@ -501,11 +500,11 @@ ls_conf(void *data, zwlr_layer_surface_v1_t *surf, u32 serial, u32 w, u32 h)
 
 	/* If the size of the last committed buffer has not changed, we don’t need
 	   to do anything. */
-	if (out->safe_to_draw && out->disp.w == w && out->disp.h == h)
+	if (out->safe_to_draw && out->dw == w && out->dh == h)
 		wl_surface_commit(out->surf);
 	else {
-		out->disp.w = w;
-		out->disp.h = h;
+		out->dw = w;
+		out->dh = h;
 		out->safe_to_draw = true;
 	}
 }
