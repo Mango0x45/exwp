@@ -1,5 +1,7 @@
 #include <sys/param.h>
 
+#include <stddef.h>
+
 #include <pixman.h>
 
 #include "common.h"
