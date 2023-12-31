@@ -17,8 +17,8 @@ dæmon can be found in the ewd(7) manual.
 
 ## Compilation and Installation
 
-Compiling the project is very simple, and required nothing more than a C
-compiler:
+Compiling the project is very simple, and requires nothing more than a C
+compiler (and pkg-config):
 
 ```sh
 cc -o make make.c
