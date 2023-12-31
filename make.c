@@ -54,7 +54,7 @@ void
 usage(void)
 {
 	fputs("Usage: make [-cds]\n"
-	      "       make install [-cs]\n"
+	      "       make [-cs] install\n"
 	      "       make clean\n",
 	      stderr);
 	exit(EXIT_FAILURE);
