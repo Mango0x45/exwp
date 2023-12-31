@@ -54,18 +54,26 @@ int
 main(int argc, char **argv)
 {
 	int opt;
+	bool cflag, sflag;
 
 	argv0 = *argv;
 	cbsinit(argc, argv);
 	rebuild();
 
-	while ((opt = getopt(argc, argv, "d")) != -1) {
+	cflag = sflag = false;
+	while ((opt = getopt(argc, argv, "cds")) != -1) {
 		switch (opt) {
+		case 'c':
+			cflag = true;
+			break;
 		case 'd':
 			debug = true;
 			break;
+		case 's':
+			sflag = true;
+			break;
 		default:
-			fputs("Usage: make [-d]\n", stderr);
+			fputs("Usage: make [-cds]\n", stderr);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -108,8 +116,12 @@ main(int argc, char **argv)
 			diex("pkg-config must be installed");
 
 		build_common();
-		build_ewctl();
-		build_ewd();
+		if (!cflag && !sflag)
+			cflag = sflag = true;
+		if (cflag)
+			build_ewctl();
+		if (sflag)
+			build_ewd();
 	}
 
 	return EXIT_SUCCESS;
