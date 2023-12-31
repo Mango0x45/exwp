@@ -343,4 +343,5 @@ _mkoutpath(const char **xs, size_t n)
 toolong:
 	errno = ENAMETOOLONG;
 	die(__func__);
+#undef trycat
 }
