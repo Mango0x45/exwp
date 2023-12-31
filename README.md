@@ -31,6 +31,17 @@ Installing it is *also* very simple:
 ./make install
 ```
 
+If you want to build or install the client or server seperately, you can
+use the -c or -s flags:
+
+```sh
+# Build the client
+./make -c
+
+# Install the server
+./make -s install
+```
+
 Building will require that you have a compiler that supports the most
 basic of C23 features.  C23 is still very young and not well supported,
 but GCC is capable of building everything.  The Ewctl has a dependency on
