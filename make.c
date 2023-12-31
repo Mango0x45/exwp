@@ -32,6 +32,7 @@
 		cmdclr(&c); \
 	} while (0)
 
+[[noreturn]] static void usage(void);
 static int globerr(const char *, int);
 static char *ctoo(const char *);
 static char *_mkoutpath(const char **, size_t);
@@ -43,12 +44,21 @@ static void build_ewctl(void);
 static void build_ewd(void);
 
 static bool debug;
-static char *argv0;
 
 struct {
 	char *buf[128];
 	size_t len;
 } cobjs;
+
+void
+usage(void)
+{
+	fputs("Usage: make [-cds]\n"
+	      "       make install [-cs]\n"
+	      "       make clean\n",
+	      stderr);
+	exit(EXIT_FAILURE);
+}
 
 int
 main(int argc, char **argv)
@@ -56,7 +66,6 @@ main(int argc, char **argv)
 	int opt;
 	bool cflag, sflag;
 
-	argv0 = *argv;
 	cbsinit(argc, argv);
 	rebuild();
 
@@ -73,15 +82,17 @@ main(int argc, char **argv)
 			sflag = true;
 			break;
 		default:
-			fputs("Usage: make [-cds]\n", stderr);
-			exit(EXIT_FAILURE);
+			usage();
 		}
 	}
 
 	argc -= optind;
 	argv += optind;
 
-	if (chdir(dirname(argv0)) == -1)
+	if (!cflag && !sflag)
+		cflag = sflag = true;
+
+	if (chdir(dirname(*(argv - optind))) == -1)
 		die("chdir: %s", *argv);
 
 	if (argc > 0) {
@@ -98,26 +109,31 @@ main(int argc, char **argv)
 			man1 = mkoutpath("/share/man/man1");
 			man7 = mkoutpath("/share/man/man7");
 
-			cmdadd(&c, "mkdir", "-p", bin, man1, man7);
+			cmdadd(&c, "mkdir", "-p", bin, man1);
+			if (sflag)
+				cmdadd(&c, man7);
 			cmdprc(c);
-			cmdadd(&c, "cp", "src/ewctl/ewctl", bin);
-			cmdprc(c);
-			cmdadd(&c, "cp", "src/ewd/ewd", bin);
-			cmdprc(c);
-			cmdadd(&c, "cp", "src/ewctl/ewctl.1", man1);
-			cmdprc(c);
-			cmdadd(&c, "cp", "src/ewd/ewd.1", man1);
-			cmdprc(c);
-			cmdadd(&c, "cp", "src/ewd/ewd.7", man7);
-			cmdprc(c);
-		}
+			if (cflag) {
+				cmdadd(&c, "cp", "src/ewctl/ewctl", bin);
+				cmdprc(c);
+				cmdadd(&c, "cp", "src/ewctl/ewctl.1", man1);
+				cmdprc(c);
+			}
+			if (sflag) {
+				cmdadd(&c, "cp", "src/ewd/ewd", bin);
+				cmdprc(c);
+				cmdadd(&c, "cp", "src/ewd/ewd.1", man1);
+				cmdprc(c);
+				cmdadd(&c, "cp", "src/ewd/ewd.7", man7);
+				cmdprc(c);
+			}
+		} else
+			usage();
 	} else {
 		if (!binexists("pkg-config"))
 			diex("pkg-config must be installed");
 
 		build_common();
-		if (!cflag && !sflag)
-			cflag = sflag = true;
 		if (cflag)
 			build_ewctl();
 		if (sflag)
