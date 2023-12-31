@@ -27,7 +27,7 @@
 	do { \
 		int rv; \
 		cmdput(c); \
-		if ((rv = cmdexec(c))) \
+		if ((rv = cmdexec(c)) && !kflag) \
 			diex("%s failed with exit-code %d", *c._argv, rv); \
 		cmdclr(&c); \
 	} while (0)
@@ -43,7 +43,7 @@ static void build_common(void);
 static void build_ewctl(void);
 static void build_ewd(void);
 
-static bool debug;
+static bool cflag, dflag, kflag, sflag;
 
 struct {
 	char *buf[128];
@@ -53,7 +53,7 @@ struct {
 void
 usage(void)
 {
-	fputs("Usage: make [-cds]\n"
+	fputs("Usage: make [-cdks]\n"
 	      "       make [-cs] install\n"
 	      "       make clean\n",
 	      stderr);
@@ -64,19 +64,20 @@ int
 main(int argc, char **argv)
 {
 	int opt;
-	bool cflag, sflag;
 
 	cbsinit(argc, argv);
 	rebuild();
 
-	cflag = sflag = false;
-	while ((opt = getopt(argc, argv, "cds")) != -1) {
+	while ((opt = getopt(argc, argv, "cdks")) != -1) {
 		switch (opt) {
 		case 'c':
 			cflag = true;
 			break;
 		case 'd':
-			debug = true;
+			dflag = true;
+			break;
+		case 'k':
+			kflag = true;
 			break;
 		case 's':
 			sflag = true;
@@ -176,7 +177,7 @@ build_common(void)
 		char *dst = ctoo(src);
 		if (foutdated(dst, src, "src/common/common.h")) {
 			cmdadd(&c, CC, CFLAGS);
-			if (debug)
+			if (dflag)
 				cmdadd(&c, CFLAGS_DEBUG);
 			else
 				cmdadd(&c, CFLAGS_RELEASE);
@@ -208,7 +209,7 @@ build_ewctl(void)
 		char *dst = ctoo(src);
 		if (foutdated(dst, src, "src/common/common.h")) {
 			cmdadd(&c, CC, CFLAGS);
-			if (debug)
+			if (dflag)
 				cmdadd(&c, CFLAGS_DEBUG);
 			else
 				cmdadd(&c, CFLAGS_RELEASE);
@@ -230,7 +231,7 @@ build_ewctl(void)
 
 	if (foutdatedv("src/ewctl/ewctl", (const char **)g.gl_pathv, g.gl_pathc)) {
 		cmdadd(&c, CC);
-		if (!debug)
+		if (!dflag)
 			cmdadd(&c, LDFLAGS_RELEASE);
 		cmdaddv(&c, v.buf, v.len);
 		cmdadd(&c, "-o", "src/ewctl/ewctl");
@@ -274,7 +275,7 @@ build_ewd(void)
 			if (streq(src, "src/ewd/main.c"))
 				cmdadd(&c, "-Wno-unused-parameter");
 
-			if (debug)
+			if (dflag)
 				cmdadd(&c, CFLAGS_DEBUG);
 			else
 				cmdadd(&c, CFLAGS_RELEASE);
@@ -302,7 +303,7 @@ build_ewd(void)
 
 	if (foutdatedv("src/ewd/ewd", (const char **)g.gl_pathv, g.gl_pathc)) {
 		cmdadd(&c, CC);
-		if (!debug)
+		if (!dflag)
 			cmdadd(&c, LDFLAGS_RELEASE);
 		cmdaddv(&c, v.buf, v.len);
 		cmdadd(&c, "-o", "src/ewd/ewd");
