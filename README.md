@@ -36,3 +36,15 @@ basic of C23 features.  C23 is still very young and not well supported,
 but GCC is capable of building everything.  The Ewctl has a dependency on
 libjxl for handling JPEG XL files and Ewd has a dependency on pixman for
 image scaling.
+
+## Documentation
+
+Both the Ewd dæmon and Ewctl client utility are documented in [ewd(1)][1]
+and [ewctl(1)][2] manual pages respectively.  If you are interested in
+writing your own clients to interface with Ewd, the Ewd protocol is also
+documented in the [ewd(7)][3] manual.  These manuals are additionally
+available online.
+
+[1]: https://thomasvoss.com/man/ewd.1
+[2]: https://thomasvoss.com/man/ewctl.1
+[3]: https://thomasvoss.com/man/ewd.7
